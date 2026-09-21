@@ -45,7 +45,7 @@ El código que se mantiene es: `Dll/`, `Project1/`, `Setup/`, `Package/`.
 
 ## Cómo compilar
 
-Requisitos: Visual Studio 2022/2026 con C++ de escritorio, Windows SDK (MakeAppx + SignTool), NuGet `Microsoft.Web.WebView2` 1.0.4191.47 (ya está en `Project1/packages/`).
+Requisitos: Visual Studio 2022/2026 con C++ de escritorio, Windows SDK (MakeAppx + SignTool), NuGet `Microsoft.Web.WebView2` 1.0.4191.47 (`packages/` no está en git; restaurar con `nuget restore Project1\packages.config -PackagesDirectory Project1\packages`).
 
 ```bat
 msbuild MediaTags.slnx /p:Configuration=Debug /p:Platform=x64
@@ -58,7 +58,20 @@ Post-build:
 
 Si `MediaTags.exe` o `WebView2Loader.dll` están bloqueados (instalador/UI abiertos), el link falla con LNK1168 / MSB3027. Cerrar `MediaTags.exe` (a veces elevado por UAC) y recompilar.
 
-Entregable para el usuario: **`out\x64\Debug\MediaTagsSetup.exe`**, no el exe suelto de Debug.
+Entregable para el usuario: **`MediaTagsSetup.exe`** (localmente `out\x64\Release\MediaTagsSetup.exe`, o el adjunto de una GitHub Release), no el exe suelto de Debug.
+
+### Publicar una GitHub Release
+
+El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-latest` (VS 2026 / v145). Un push a `main` o un PR deja el instalador como artifact de Actions. Un tag `vX.Y.Z` crea la Release y adjunta `MediaTagsSetup-X.Y.Z.exe`.
+
+La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.3` → `1.0.3.0`). Si cambias el manifiesto, súbela antes de etiquetar.
+
+```bat
+git tag v1.0.3
+git push origin v1.0.3
+```
+
+El usuario final descarga ese `.exe` y no necesita Visual Studio. El MSIX sigue yendo autofirmado (`CN=MediaTags`); el instalador importa el `.cer` embebido. Defender puede seguir marcando falso positivo.
 
 ## Arquitectura en runtime
 

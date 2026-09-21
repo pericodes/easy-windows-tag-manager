@@ -20,24 +20,18 @@ Tags stay on the file: they show up in Explorer, on other PCs, and in apps that 
 
 ## Installation
 
+Download **MediaTagsSetup** from the [latest GitHub Release](https://github.com/pericodes/easy-windows-tag-manager/releases/latest) and run it (UAC prompt). You do not need to compile the project.
+
 Requirements:
 
 - Windows 10 (19041+) or Windows 11, **64-bit**
 - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually already installed with Edge)
 
-Run the installer (it prompts for UAC):
+Do not use a loose `MediaTags.exe` from a build folder: Explorer loads the copy installed in `%LOCALAPPDATA%\MediaTags`.
 
-```text
-out\x64\Debug\MediaTagsSetup.exe
-```
+Uninstall from *Settings → Apps*, or run the same installer with `/uninstall`.
 
-or, if you built Release, `out\x64\Release\MediaTagsSetup.exe`.
-
-Do not use the loose `MediaTags.exe` from the build folder: Explorer loads the copy installed in `%LOCALAPPDATA%\MediaTags`.
-
-Uninstall from *Settings → Apps*, or run `MediaTagsSetup.exe /uninstall`.
-
-If Windows Defender flags the installer or the `.exe` (`Trojan:Win32/Bearfoos.Alml`), it is a heuristic **false positive** (unsigned Authenticode installer). Restore or allow the file.
+If Windows Defender flags the installer (`Trojan:Win32/Bearfoos.Alml`), it is a heuristic **false positive** (self-signed installer). Restore or allow the file.
 
 ## Build
 
@@ -52,6 +46,8 @@ msbuild MediaTags.slnx /p:Configuration=Debug /p:Platform=x64
 The deliverable is **`MediaTagsSetup.exe`**. After changing code, install it again; otherwise Explorer keeps using the old DLL from AppData. If the menu does not update, restart the *Windows Explorer* process.
 
 If linking fails with LNK1168, close `MediaTags.exe` (it is sometimes elevated by UAC) and rebuild.
+
+To publish a new downloadable installer, push a tag `vX.Y.Z` (for package version `X.Y.Z.0`). GitHub Actions builds Release x64 and attaches `MediaTagsSetup-X.Y.Z.exe` to the release.
 
 ## Layout
 
@@ -92,24 +88,18 @@ Los tags quedan en el archivo: se ven en el Explorador, en otras PCs y en progra
 
 ## Instalación
 
+Descarga **MediaTagsSetup** de la [última release de GitHub](https://github.com/pericodes/easy-windows-tag-manager/releases/latest) y ejecútalo (pide UAC). No hace falta compilar el proyecto.
+
 Requisitos:
 
 - Windows 10 (19041+) o Windows 11, **64 bits**
 - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (suele venir con Edge)
 
-Ejecuta el instalador (pide UAC):
+No uses `MediaTags.exe` suelto de una carpeta de compilación: el menú del Explorador carga la copia instalada en `%LOCALAPPDATA%\MediaTags`.
 
-```text
-out\x64\Debug\MediaTagsSetup.exe
-```
+Desinstalar: *Configuración → Aplicaciones*, o el mismo instalador con `/uninstall`.
 
-o, si compilaste Release, `out\x64\Release\MediaTagsSetup.exe`.
-
-No uses `MediaTags.exe` suelto de la carpeta de compilación: el menú del Explorador carga la copia instalada en `%LOCALAPPDATA%\MediaTags`.
-
-Desinstalar: *Configuración → Aplicaciones*, o `MediaTagsSetup.exe /uninstall`.
-
-Si Windows Defender marca el instalador o el `.exe` (`Trojan:Win32/Bearfoos.Alml`), es un **falso positivo** heurístico (instalador sin firma Authenticode). Restaura o permite el archivo.
+Si Windows Defender marca el instalador (`Trojan:Win32/Bearfoos.Alml`), es un **falso positivo** heurístico (instalador autofirmado). Restaura o permite el archivo.
 
 ## Compilar
 
@@ -124,6 +114,8 @@ msbuild MediaTags.slnx /p:Configuration=Debug /p:Platform=x64
 El entregable es **`MediaTagsSetup.exe`**. Tras cambiar código, vuelve a instalarlo; si no, el Explorador sigue usando la DLL vieja de AppData. Si el menú no se actualiza, reinicia el proceso *Explorador de Windows*.
 
 Si el link falla con LNK1168, cierra `MediaTags.exe` (a veces está elevado por UAC) y recompila.
+
+Para publicar un instalador descargable, empuja un tag `vX.Y.Z` (versión de paquete `X.Y.Z.0`). GitHub Actions compila Release x64 y adjunta `MediaTagsSetup-X.Y.Z.exe` a la release.
 
 ## Estructura
 

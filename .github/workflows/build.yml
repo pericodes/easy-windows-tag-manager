@@ -1,0 +1,78 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
+
+      - name: Restore WebView2
+        run: nuget restore Project1\packages.config -PackagesDirectory Project1\packages
+
+      - name: Build Release x64
+        run: msbuild MediaTags.slnx /m /p:Configuration=Release /p:Platform=x64
+
+      - name: Stage installer
+        shell: pwsh
+        run: |
+          $src = "out\x64\Release\MediaTagsSetup.exe"
+          if (-not (Test-Path $src)) {
+            throw "No se generó $src"
+          }
+          $version = if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $env:GITHUB_REF_NAME.TrimStart("v")
+          } else {
+            "dev"
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          $dest = "dist\MediaTagsSetup-$version.exe"
+          Copy-Item $src $dest
+          Get-Item $dest | Select-Object FullName, Length, LastWriteTime
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MediaTagsSetup
+          path: dist/MediaTagsSetup-*.exe
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MediaTagsSetup-*.exe
+          generate_release_notes: true
+          body: |
+            Download **MediaTagsSetup** and run it (UAC). Windows 10/11 **64-bit**. [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) is usually already installed with Edge.
+
+            Uninstall from *Settings → Apps*, or run the same installer with `/uninstall`.
+
+            If Defender flags the file (`Trojan:Win32/Bearfoos.Alml`), restore or allow it: known heuristic false positive (self-signed installer).
+
+            ---
+
+            Descarga **MediaTagsSetup** y ejecútalo (UAC). Windows 10/11 **64 bits**. [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) suele venir con Edge.
+
+            Desinstalar: *Configuración → Aplicaciones*, o el mismo instalador con `/uninstall`.
+
+            Si Defender marca el archivo (`Trojan:Win32/Bearfoos.Alml`), restáuralo o permítelo: falso positivo heurístico conocido (instalador autofirmado).
