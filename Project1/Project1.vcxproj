@@ -162,6 +162,7 @@
     <ClInclude Include="WebViewApp.h" />
     <ClInclude Include="Tags.h" />
     <ClInclude Include="Install.h" />
+    <ClInclude Include="MediaTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Project1.cpp" />

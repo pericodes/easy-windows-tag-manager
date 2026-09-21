@@ -4,7 +4,11 @@
 
 Windows 10/11 app that adds **Manage tags** to the context menu of photos and videos. Tags are stored in the file properties (`System.Keywords`), the same ones File Explorer shows under Details.
 
-Formats: `.jpg`, `.jpeg`, `.mp4`, and `.mov`.
+**Images:** `.jpg`, `.jpeg`, `.jpe`, `.jfif`, `.png`, `.tif`, `.tiff`, `.avif`
+
+**Videos:** `.mp4`, `.m4v`, `.mov`, `.wmv`, `.asf`, `.3gp`, `.3g2`
+
+Only formats where Windows itself persists `System.Keywords` (Explorer Tags). `.webp`, `.gif`, `.bmp`, `.mkv`, `.avi` and similar are omitted: the OS property handler refuses to write tags (`STG_E_ACCESSDENIED` / not writable).
 
 ## Usage
 
@@ -72,7 +76,11 @@ Implementation details, CLSID, and known pitfalls are in [AGENTS.md](AGENTS.md).
 
 App de Windows 10/11 que añade **Gestionar tags** al menú contextual de fotos y vídeos. Los tags se guardan en las propiedades del archivo (`System.Keywords`), las mismas que muestra el Explorador en Detalles.
 
-Formatos: `.jpg`, `.jpeg`, `.mp4` y `.mov`.
+**Imágenes:** `.jpg`, `.jpeg`, `.jpe`, `.jfif`, `.png`, `.tif`, `.tiff`, `.avif`
+
+**Vídeos:** `.mp4`, `.m4v`, `.mov`, `.wmv`, `.asf`, `.3gp`, `.3g2`
+
+Solo formatos en los que Windows persiste `System.Keywords` (Tags del Explorador). `.webp`, `.gif`, `.bmp`, `.mkv`, `.avi` y similares no están: el handler del sistema no deja escribir tags (`STG_E_ACCESSDENIED` / no escribible).
 
 ## Uso
 

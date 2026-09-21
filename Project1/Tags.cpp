@@ -6,7 +6,6 @@
 #pragma comment(lib, "propsys.lib")
 
 #include <algorithm>
-#include <set>
 
 namespace
 {
@@ -68,7 +67,7 @@ namespace Tags
             );
         }
 
-        if (FAILED(hr))
+        if (FAILED(hr) || !store)
             return result;
 
         PROPVARIANT value;
@@ -143,7 +142,7 @@ namespace Tags
                 IID_PPV_ARGS(&store)
             );
 
-        if (FAILED(hr))
+        if (FAILED(hr) || !store)
             return false;
 
         std::vector<std::wstring> clean;

@@ -1,4 +1,5 @@
 #include "Install.h"
+#include "MediaTypes.h"
 
 #include <windows.h>
 #include <shlobj.h>
@@ -495,7 +496,7 @@ namespace
         std::wstring uninstall = L"\"" + exe + L"\" --uninstall";
         std::wstring display = kAppName;
         std::wstring publisher = L"Media Tags";
-        std::wstring version = L"1.0.0";
+        std::wstring version = L"1.0.3";
         DWORD noModify = 1;
 
         auto setSz = [&](const wchar_t* name, const std::wstring& value)
@@ -571,6 +572,20 @@ namespace
         return result == ERROR_SUCCESS;
     }
 
+    void DeleteClassicVerbs(const wchar_t* const* extensions, size_t count)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            const std::wstring verb =
+                std::wstring(
+                    L"Software\\Classes\\SystemFileAssociations\\") +
+                extensions[i] +
+                L"\\shell\\MediaTags";
+
+            RegDeleteTreeW(HKEY_CURRENT_USER, verb.c_str());
+        }
+    }
+
     void RegisterClassicMenu(const fs::path& dir)
     {
         const std::wstring clsid =
@@ -587,11 +602,7 @@ namespace
         SetKeyValue(inproc, nullptr, dll);
         SetKeyValue(inproc, L"ThreadingModel", L"Apartment");
 
-        const wchar_t* extensions[] = {
-            L".jpg", L".jpeg", L".mp4", L".mov"
-        };
-
-        for (const wchar_t* ext : extensions)
+        for (const wchar_t* ext : kMediaTagExtensions)
         {
             const std::wstring verb =
                 std::wstring(
@@ -605,6 +616,10 @@ namespace
             SetKeyValue(verb, L"ExplorerCommandHandler", clsid);
             SetKeyValue(verb, L"MultiSelectModel", L"Player");
         }
+
+        DeleteClassicVerbs(
+            kRetiredMediaTagExtensions,
+            std::size(kRetiredMediaTagExtensions));
 
         SHChangeNotify(
             SHCNE_ASSOCCHANGED,
@@ -622,20 +637,12 @@ namespace
             HKEY_CURRENT_USER,
             (L"Software\\Classes\\CLSID\\" + clsid).c_str());
 
-        const wchar_t* extensions[] = {
-            L".jpg", L".jpeg", L".mp4", L".mov"
-        };
-
-        for (const wchar_t* ext : extensions)
-        {
-            const std::wstring verb =
-                std::wstring(
-                    L"Software\\Classes\\SystemFileAssociations\\") +
-                ext +
-                L"\\shell\\MediaTags";
-
-            RegDeleteTreeW(HKEY_CURRENT_USER, verb.c_str());
-        }
+        DeleteClassicVerbs(
+            kMediaTagExtensions,
+            std::size(kMediaTagExtensions));
+        DeleteClassicVerbs(
+            kRetiredMediaTagExtensions,
+            std::size(kRetiredMediaTagExtensions));
 
         SHChangeNotify(
             SHCNE_ASSOCCHANGED,

@@ -1,6 +1,13 @@
 # AGENTS.md — Media Tags (easy-windows-tag-manager)
 
-Documento para que otra IA continúe el trabajo. El producto es una app Win32 de Windows 10/11 que añade **Gestionar tags** al menú contextual de `.jpg`, `.jpeg`, `.mp4` y `.mov`. Los tags se guardan en `System.Keywords` (propiedades de archivo de Windows). La UI es HTML/JS dentro de WebView2.
+Documento para que otra IA continúe el trabajo. El producto es una app Win32 de Windows 10/11 que añade **Gestionar tags** al menú contextual de fotos y vídeos. Los tags se guardan en `System.Keywords` (propiedades de archivo de Windows). La UI es HTML/JS dentro de WebView2.
+
+Extensiones (lista canónica `Project1/MediaTypes.h`, duplicada en `Package/AppxManifest.xml`). Solo las que el `IPropertyStore` nativo **escribe y relee** `PKEY_Keywords` (Tags del Explorador):
+
+- Imágenes: `.jpg` `.jpeg` `.jpe` `.jfif` `.png` `.tif` `.tiff` `.avif`
+- Vídeos: `.mp4` `.m4v` `.mov` `.wmv` `.asf` `.3gp` `.3g2`
+
+No incluir `.webp` `.gif` `.bmp` `.heic` `.mkv` `.avi` `.webm` `.mpg`: `IsPropertyWritable(PKEY_Keywords)` es `S_FALSE` o `SetValue` falla (`STG_E_ACCESSDENIED` / WINCODEC). El menú no filtra en la DLL; el filtro es manifiesto + HKCU. `kRetiredMediaTagExtensions` se borra al reinstalar para quitar verbos viejos.
 
 Responde al usuario en **español**.
 
@@ -146,7 +153,7 @@ No ejecutar `MediaTags.exe` de `out\x64\Debug` como instalador si se puede evita
 
 - `uap10:AllowExternalContent=true` (sparse: el msix solo lleva manifiesto + logos 1×1).
 - `ProcessorArchitecture="x64"` (Neutral rompe la carga de la DLL en Explorer).
-- Versión actual: **1.0.1.0**. Si cambias el manifiesto, súbela.
+- Versión actual: **1.0.3.0**. Si cambias el manifiesto, súbela.
 - Menú Win11: **`desktop5:ItemType` / `desktop5:Verb`** dentro de `desktop4:FileExplorerContextMenus`. `desktop4:ItemType` **no aparece** en el menú moderno.
 - Publisher del cert autofirmado: `CN=MediaTags` (debe coincidir con `Identity/@Publisher`).
 - `build-msix.ps1` crea/reutiliza el cert en `Cert:\CurrentUser\My`, firma con SignTool, deja `.msix` y `.cer` en OutDir.
@@ -159,7 +166,7 @@ HKCU\Software\Classes\SystemFileAssociations\.jpg\shell\MediaTags
   ExplorerCommandHandler = {7D3B1F20-...}
 ```
 
-Igual para `.jpeg`, `.mp4`, `.mov`.
+Igual para el resto de extensiones de `MediaTypes.h`.
 
 ## Errores ya vistos y cómo no repetirlos
 
@@ -172,6 +179,7 @@ Igual para `.jpeg`, `.mp4`, `.mov`.
 7. **“No se pudo copiar MediaTagsShell.dll”** — DLL cargada por Explorer. Renombrar a `.old` y copiar; o reiniciar Explorer e instalar `MediaTagsSetup.exe`.
 8. **LNK1168 al compilar** — `MediaTags.exe` abierto (a veces elevado). Cerrar procesos y recompilar.
 9. **Defender `Trojan:Win32/Bearfoos.Alml`** — falso positivo heurístico. La causa era `powershell -ExecutionPolicy Bypass` + `cmd.exe` + importar certificado + registrar Appx desde `Install.cpp`. Eso ya no está en el `.exe`. Si sigue saliendo: restaurar/permitir el archivo, usar `MediaTagsSetup.exe` (no el Debug suelto), y si hace falta exclusión o envío a WDSI. Un certificado Authenticode de verdad reduce falsos positivos. El PowerShell de los post-build (`build-msix.ps1`) **no** se incrusta en el binario.
+10. **WebP / GIF / BMP no guardan tags nativos** — `IsPropertyWritable(PKEY_Keywords)` es `S_FALSE`. En WebP `SetValue` devuelve `STG_E_ACCESSDENIED` (0x80030005). El Photo Property Handler de Windows solo escribe keywords con política JPEG/TIFF (PNG/AVIF sí). **No** inventar XMP propio: si el Explorador no puede mostrar Tags, no se registra el tipo. Ver `kRetiredMediaTagExtensions`.
 
 MakeAppx exige: `PublisherDisplayName` en una línea, `BackgroundColor` en VisualElements, GUID sin `{}`.
 
@@ -186,7 +194,7 @@ MakeAppx exige: `PublisherDisplayName` en una línea, `BackgroundColor` en Visua
 ## Cosas pendientes / mejoras razonables
 
 - Iconos reales del paquete (hoy PNG 1×1).
-- Más tipos (`.png`, `.webp`, `.avi`) = más `desktop5:ItemType` + verbos HKCU.
+- Más tipos solo si `IPropertyStore` nativo escribe y el Explorador muestra Tags. `.webp`/`.gif`/`.bmp`/`.mkv` no.
 - Certificado de código firmado de verdad (el autofirmado exige confiar el `.cer` / sideload).
 - `Project1` sigue llamándose Project1; el TargetName ya es `MediaTags`.
 - `g_objects` en la DLL no se incrementa; `DllCanUnloadNow` casi siempre S_OK.

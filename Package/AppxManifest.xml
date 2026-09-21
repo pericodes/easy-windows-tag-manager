@@ -12,7 +12,7 @@
     <Identity
         Name="MediaTags"
         Publisher="CN=MediaTags"
-        Version="1.0.1.0"
+        Version="1.0.3.0"
         ProcessorArchitecture="x64" />
 
     <Properties>
@@ -64,24 +64,49 @@
                 <desktop4:Extension Category="windows.fileExplorerContextMenus">
                     <desktop4:FileExplorerContextMenus>
                         <desktop5:ItemType Type=".jpg">
-                            <desktop5:Verb
-                                Id="GestionarTags"
-                                Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
                         </desktop5:ItemType>
                         <desktop5:ItemType Type=".jpeg">
-                            <desktop5:Verb
-                                Id="GestionarTags"
-                                Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".jpe">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".jfif">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".png">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".tif">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".tiff">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".avif">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
                         </desktop5:ItemType>
                         <desktop5:ItemType Type=".mp4">
-                            <desktop5:Verb
-                                Id="GestionarTags"
-                                Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".m4v">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
                         </desktop5:ItemType>
                         <desktop5:ItemType Type=".mov">
-                            <desktop5:Verb
-                                Id="GestionarTags"
-                                Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".wmv">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".asf">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".3gp">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
+                        </desktop5:ItemType>
+                        <desktop5:ItemType Type=".3g2">
+                            <desktop5:Verb Id="GestionarTags" Clsid="7D3B1F20-6F62-4B3A-9162-1842775210A1" />
                         </desktop5:ItemType>
                     </desktop4:FileExplorerContextMenus>
                 </desktop4:Extension>
