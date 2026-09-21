@@ -29,6 +29,48 @@ function postAction(action, tags) {
 }
 
 
+function createActionButton(label, className, onClick) {
+
+    const button =
+        document.createElement("button");
+
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+
+    return button;
+}
+
+
+function createTagRow(tag, actions) {
+
+    const row =
+        document.createElement("div");
+
+    row.className = "tag-row";
+
+    const name =
+        document.createElement("span");
+
+    name.className = "tag-row-name";
+    name.textContent = tag;
+    name.title = tag;
+
+    const group =
+        document.createElement("div");
+
+    group.className = "tag-row-actions";
+
+    for (const action of actions)
+        group.appendChild(action);
+
+    row.appendChild(name);
+    row.appendChild(group);
+
+    return row;
+}
+
+
 function renderCommonTags() {
 
     tagsContainer.innerHTML = "";
@@ -53,33 +95,14 @@ function renderCommonTags() {
 
     for (const tag of commonTags) {
 
-        const label =
-            document.createElement("label");
-
-        label.className = "tag";
-
-        const checkbox =
-            document.createElement("input");
-
-        checkbox.type = "checkbox";
-
-        checkbox.value = tag;
-
-        const text =
-            document.createElement("span");
-
-        text.textContent = tag;
-
-        label.appendChild(
-            checkbox
-        );
-
-        label.appendChild(
-            text
-        );
-
         tagsContainer.appendChild(
-            label
+            createTagRow(tag, [
+                createActionButton(
+                    "Eliminar",
+                    "danger small",
+                    () => postAction("delete", [tag])
+                )
+            ])
         );
     }
 }
@@ -107,70 +130,19 @@ function renderOtherTags() {
 
     for (const tag of otherTags) {
 
-        const row =
-            document.createElement("div");
-
-        row.className = "other-row";
-
-        const name =
-            document.createElement("span");
-
-        name.className = "other-row-name";
-        name.textContent = tag;
-        name.title = tag;
-
-        const actions =
-            document.createElement("div");
-
-        actions.className =
-            "other-row-actions";
-
-        const remove =
-            document.createElement("button");
-
-        remove.className =
-            "danger small";
-
-        remove.textContent =
-            "Eliminar";
-
-        remove.addEventListener(
-            "click",
-            () => {
-                postAction(
-                    "delete",
-                    [tag]
-                );
-            }
-        );
-
-        const addToAll =
-            document.createElement("button");
-
-        addToAll.className =
-            "primary small";
-
-        addToAll.textContent =
-            "Añadir a todos";
-
-        addToAll.addEventListener(
-            "click",
-            () => {
-                postAction(
-                    "add",
-                    [tag]
-                );
-            }
-        );
-
-        actions.appendChild(remove);
-        actions.appendChild(addToAll);
-
-        row.appendChild(name);
-        row.appendChild(actions);
-
         otherTagsContainer.appendChild(
-            row
+            createTagRow(tag, [
+                createActionButton(
+                    "Eliminar",
+                    "danger small",
+                    () => postAction("delete", [tag])
+                ),
+                createActionButton(
+                    "Añadir a todos",
+                    "primary small",
+                    () => postAction("add", [tag])
+                )
+            ])
         );
     }
 }
@@ -181,37 +153,6 @@ function renderTags() {
     renderCommonTags();
     renderOtherTags();
 }
-
-
-function selectedTags() {
-
-    return Array.from(
-        tagsContainer
-            .querySelectorAll(
-                "input[type=checkbox]:checked"
-            )
-    ).map(
-        checkbox => checkbox.value
-    );
-}
-
-
-document
-    .getElementById("delete")
-    .addEventListener(
-        "click",
-        () => {
-
-            const tags =
-                selectedTags();
-
-            if (tags.length === 0) {
-                return;
-            }
-
-            postAction("delete", tags);
-        }
-    );
 
 
 document

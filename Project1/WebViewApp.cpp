@@ -389,7 +389,7 @@ void WebViewApp::InitWebView()
                                 L"\\Web\\index.html";
 
                             std::wstring uri =
-                                L"file:///" + html + L"?v=2";
+                                L"file:///" + html + L"?v=3";
 
                             std::replace(
                                 uri.begin(),
