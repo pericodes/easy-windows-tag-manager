@@ -16,6 +16,8 @@ body {
 
     background: #f7f7f7;
     color: #202020;
+
+    overflow-y: auto;
 }
 
 .window {
@@ -45,8 +47,12 @@ h2 {
 
     gap: 8px;
 
-    max-height: 280px;
+    max-height: 180px;
     overflow-y: auto;
+}
+
+.other-tags {
+    max-height: 220px;
 }
 
 .tag {
@@ -72,6 +78,43 @@ h2 {
     height: 18px;
 
     margin-right: 10px;
+}
+
+.other-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    gap: 12px;
+
+    padding: 10px;
+
+    border-radius: 6px;
+
+    background: white;
+    border: 1px solid #ddd;
+}
+
+.other-row-name {
+    min-width: 0;
+    flex: 1;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.other-row-actions {
+    display: flex;
+    flex-shrink: 0;
+
+    gap: 8px;
+}
+
+.small {
+    padding: 6px 12px;
+    font-size: 12px;
 }
 
 .buttons {

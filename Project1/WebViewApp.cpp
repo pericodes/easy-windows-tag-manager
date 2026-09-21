@@ -152,6 +152,53 @@ namespace
 
         return result;
     }
+
+    void AppendJsonArray(
+        std::wstringstream& json,
+        const std::vector<std::wstring>& values)
+    {
+        json << L"[";
+
+        for (size_t i = 0; i < values.size(); ++i)
+        {
+            if (i)
+                json << L",";
+
+            json << L"\""
+                 << JsonEscape(values[i])
+                 << L"\"";
+        }
+
+        json << L"]";
+    }
+
+    std::vector<std::wstring>
+    OtherTags(
+        const std::vector<std::vector<std::wstring>>& all,
+        const std::vector<std::wstring>& common)
+    {
+        std::set<std::wstring> unique;
+
+        for (const auto& tags : all)
+        {
+            for (const auto& tag : tags)
+            {
+                if (std::find(
+                        common.begin(),
+                        common.end(),
+                        tag
+                    ) == common.end())
+                {
+                    unique.insert(tag);
+                }
+            }
+        }
+
+        return {
+            unique.begin(),
+            unique.end()
+        };
+    }
 }
 
 WebViewApp::WebViewApp()
@@ -187,8 +234,8 @@ bool WebViewApp::Create(
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        600,
-        500,
+        640,
+        720,
         nullptr,
         nullptr,
         wc.hInstance,
@@ -341,16 +388,16 @@ void WebViewApp::InitWebView()
                                 base +
                                 L"\\Web\\index.html";
 
-                                std::wstring uri =
-                                L"file:///" + html;
-                            
+                            std::wstring uri =
+                                L"file:///" + html + L"?v=2";
+
                             std::replace(
                                 uri.begin(),
                                 uri.end(),
                                 L'\\',
                                 L'/'
                             );
-                            
+
                             m_webview->Navigate(
                                 uri.c_str()
                             );
@@ -382,25 +429,22 @@ void WebViewApp::SendInitialData()
     auto common =
         Intersection(allTags);
 
+    auto other =
+        OtherTags(allTags, common);
+
     std::wstringstream json;
 
     json << L"{\"files\":"
          << m_files.size()
-         << L",\"tags\":[";
+         << L",\"tags\":";
 
-    for (size_t i = 0;
-         i < common.size();
-         ++i)
-    {
-        if (i)
-            json << L",";
+    AppendJsonArray(json, common);
 
-        json << L"\""
-             << JsonEscape(common[i])
-             << L"\"";
-    }
+    json << L",\"other\":";
 
-    json << L"]}";
+    AppendJsonArray(json, other);
+
+    json << L"}";
 
     m_webview->PostWebMessageAsJson(
         json.str().c_str()

@@ -62,7 +62,11 @@ Entregable para el usuario: **`MediaTagsSetup.exe`** (localmente `out\x64\Releas
 
 ### Publicar una GitHub Release
 
-El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-latest` (VS 2026 / v145). Un push a `main` o un PR deja el instalador como artifact de Actions. Un tag `vX.Y.Z` crea la Release y adjunta `MediaTagsSetup-X.Y.Z.exe`.
+El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-latest` (VS 2026 / v145). Un push a `main` o un PR deja el instalador como artifact de Actions. Un tag `vX.Y.Z` crea una **GitHub Release** (pestaña Releases, no Tags) y adjunta `MediaTagsSetup.exe`.
+
+Un tag solo no publica el `.exe`: hay que esperar a que Actions termine en verde. Si el job falla, Releases queda vacío y en Tags solo se ven los zips de código fuente.
+
+Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.3`).
 
 La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.3` → `1.0.3.0`). Si cambias el manifiesto, súbela antes de etiquetar.
 
@@ -124,7 +128,7 @@ Punto de entrada: `Project1.cpp` (`wWinMain`). Argumentos:
 - Tras `Navigate`, **`NavigationCompleted` debe llamar a `SendInitialData()`**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco.
 - Tras `action: add` o `delete`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
 - User data de WebView2: `%LOCALAPPDATA%\MediaTags\WebView2`.
-- JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."]}`.
+- JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."]}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos.
 - JSON desde JS: `{"action":"add"|"delete","tags":[...]}`. Parsear solo el array `"tags"`, no todas las cadenas entre comillas.
 
 `Tags.cpp`:

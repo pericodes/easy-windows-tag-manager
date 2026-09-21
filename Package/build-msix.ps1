@@ -16,21 +16,33 @@ $MsixPath = Join-Path $OutDir "MediaTags.msix"
 $CertPath = Join-Path $OutDir "MediaTags.cer"
 
 function Find-SdkTool([string]$Name) {
-    $kitBin = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\bin"
-    if (-not (Test-Path $kitBin)) {
-        throw "No se encontró el Windows SDK en $kitBin"
+    $candidates = @()
+    $kitRoot = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10"
+    $kitBin = Join-Path $kitRoot "bin"
+
+    if (Test-Path $kitBin) {
+        $candidates += Get-ChildItem -Path $kitBin -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Join-Path $_.FullName "x64\$Name" }
+        $candidates += Join-Path $kitBin "x64\$Name"
     }
 
-    $tool = Get-ChildItem -Path $kitBin -Recurse -Filter $Name -ErrorAction SilentlyContinue |
-        Where-Object { $_.Directory.Name -eq "x64" } |
-        Sort-Object FullName -Descending |
+    $candidates += Join-Path $kitRoot "App Certification Kit\$Name"
+
+    $cmd = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($cmd) {
+        $candidates += $cmd.Source
+    }
+
+    $tool = $candidates |
+        Where-Object { $_ -and (Test-Path $_) } |
         Select-Object -First 1
 
     if (-not $tool) {
-        throw "No se encontró $Name en el Windows SDK."
+        throw "No se encontró $Name. SDK bin=$kitBin (existe=$(Test-Path $kitBin))."
     }
 
-    return $tool.FullName
+    Write-Host "Usando $Name : $tool"
+    return $tool
 }
 
 $exe = Join-Path $OutDir "MediaTags.exe"
@@ -49,21 +61,28 @@ New-Item -ItemType Directory -Force -Path $StagingDir | Out-Null
 Copy-Item (Join-Path $PackageDir "AppxManifest.xml") (Join-Path $StagingDir "AppxManifest.xml")
 Copy-Item (Join-Path $PackageDir "Assets") (Join-Path $StagingDir "Assets") -Recurse
 
-$cert = Get-ChildItem Cert:\CurrentUser\My |
-    Where-Object { $_.Subject -eq "CN=MediaTags" } |
+$cert = @(Get-ChildItem Cert:\CurrentUser\My -ErrorAction SilentlyContinue |
+    Where-Object { $_.Subject -eq "CN=MediaTags" }) |
     Select-Object -First 1
 
 if (-not $cert) {
-    $cert = New-SelfSignedCertificate `
-        -Type Custom `
-        -Subject "CN=MediaTags" `
-        -KeyUsage DigitalSignature `
-        -FriendlyName "MediaTags" `
-        -CertStoreLocation "Cert:\CurrentUser\My" `
-        -TextExtension @(
-            "2.5.29.37={text}1.3.6.1.5.5.7.3.3",
-            "2.5.29.19={text}"
-        )
+    try {
+        $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=MediaTags" `
+            -KeyUsage DigitalSignature `
+            -KeySpec Signature `
+            -KeyExportPolicy Exportable `
+            -HashAlgorithm SHA256 `
+            -FriendlyName "MediaTags" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @(
+                "2.5.29.37={text}1.3.6.1.5.5.7.3.3",
+                "2.5.29.19={text}"
+            )
+    } catch {
+        throw "No se pudo crear el certificado CN=MediaTags: $($_.Exception.Message)"
+    }
 }
 
 if (Test-Path $CertPath) {
