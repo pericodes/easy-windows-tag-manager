@@ -121,6 +121,59 @@ namespace
         return result;
     }
 
+    std::wstring ParseJsonStringField(
+        const std::wstring& json,
+        const std::wstring& key)
+    {
+        const std::wstring needle =
+            L"\"" + key + L"\":";
+
+        size_t pos = json.find(needle);
+        if (pos == std::wstring::npos)
+            return {};
+
+        pos += needle.size();
+
+        while (pos < json.size() &&
+               (json[pos] == L' ' || json[pos] == L'\t'))
+        {
+            ++pos;
+        }
+
+        if (pos >= json.size() || json[pos] != L'"')
+            return {};
+
+        ++pos;
+
+        std::wstring value;
+        bool escaped = false;
+
+        while (pos < json.size())
+        {
+            wchar_t c = json[pos++];
+
+            if (escaped)
+            {
+                value += c;
+                escaped = false;
+                continue;
+            }
+
+            if (c == L'\\')
+            {
+                escaped = true;
+                continue;
+            }
+
+            if (c == L'"')
+                break;
+
+            value += c;
+        }
+
+        return value;
+    }
+
     std::vector<std::wstring>
     Intersection(
         const std::vector<std::vector<std::wstring>>& all)
@@ -389,7 +442,7 @@ void WebViewApp::InitWebView()
                                 L"\\Web\\index.html";
 
                             std::wstring uri =
-                                L"file:///" + html + L"?v=3";
+                                L"file:///" + html + L"?v=4";
 
                             std::replace(
                                 uri.begin(),
@@ -454,6 +507,32 @@ void WebViewApp::SendInitialData()
 void WebViewApp::OnMessage(
     const std::wstring& json)
 {
+    if (json.find(
+            L"\"action\":\"rename\"")
+        != std::wstring::npos)
+    {
+        auto from =
+            ParseJsonStringField(json, L"from");
+
+        auto to =
+            ParseJsonStringField(json, L"to");
+
+        if (!from.empty() && !to.empty())
+        {
+            for (const auto& file : m_files)
+            {
+                Tags::Rename(
+                    file,
+                    from,
+                    to
+                );
+            }
+        }
+
+        SendInitialData();
+        return;
+    }
+
     if (json.find(
             L"\"action\":\"delete\"")
         != std::wstring::npos)

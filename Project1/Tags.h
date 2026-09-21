@@ -25,4 +25,10 @@ namespace Tags
         const std::wstring& file,
         const std::vector<std::wstring>& tags
     );
+
+    bool Rename(
+        const std::wstring& file,
+        const std::wstring& from,
+        const std::wstring& to
+    );
 }

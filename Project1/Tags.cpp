@@ -241,4 +241,39 @@ namespace Tags
 
         return Write(file, current);
     }
+
+    bool Rename(
+        const std::wstring& file,
+        const std::wstring& from,
+        const std::wstring& to)
+    {
+        auto oldTag = Normalize(from);
+        auto newTag = Normalize(to);
+
+        if (oldTag.empty() ||
+            newTag.empty() ||
+            oldTag == newTag)
+        {
+            return true;
+        }
+
+        auto current = Read(file);
+
+        if (!Contains(current, oldTag))
+            return true;
+
+        current.erase(
+            std::remove(
+                current.begin(),
+                current.end(),
+                oldTag
+            ),
+            current.end()
+        );
+
+        if (!Contains(current, newTag))
+            current.push_back(newTag);
+
+        return Write(file, current);
+    }
 }

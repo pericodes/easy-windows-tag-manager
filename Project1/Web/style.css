@@ -93,6 +93,22 @@ h2 {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    cursor: text;
+}
+
+.tag-row-input {
+    min-width: 0;
+    flex: 1;
+
+    font: inherit;
+    font-size: 14px;
+
+    padding: 4px 8px;
+
+    border: 1px solid #0067c0;
+    border-radius: 4px;
+    outline: none;
 }
 
 .tag-row-actions {

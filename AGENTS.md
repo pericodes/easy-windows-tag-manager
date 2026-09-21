@@ -126,10 +126,10 @@ Punto de entrada: `Project1.cpp` (`wWinMain`). Argumentos:
 
 - `WebViewApp.cpp`: ventana + WebView2.
 - Tras `Navigate`, **`NavigationCompleted` debe llamar a `SendInitialData()`**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco.
-- Tras `action: add` o `delete`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
+- Tras `action: add`, `delete` o `rename`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
 - User data de WebView2: `%LOCALAPPDATA%\MediaTags\WebView2`.
 - JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."]}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos.
-- JSON desde JS: `{"action":"add"|"delete","tags":[...]}`. Parsear solo el array `"tags"`, no todas las cadenas entre comillas.
+- JSON desde JS: `{"action":"add"|"delete","tags":[...]}` o `{"action":"rename","from":"...","to":"..."}`. `rename` solo sustituye el tag en los archivos que ya lo tienen; no lo añade al resto. Parsear el array `"tags"` o los campos `"from"`/`"to"`, no todas las cadenas entre comillas.
 
 `Tags.cpp`:
 

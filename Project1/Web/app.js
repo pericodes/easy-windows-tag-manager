@@ -29,6 +29,81 @@ function postAction(action, tags) {
 }
 
 
+function postRename(from, to) {
+
+    chrome.webview.postMessage({
+        action: "rename",
+        from,
+        to
+    });
+}
+
+
+function beginEdit(nameEl, original) {
+
+    const input =
+        document.createElement("input");
+
+    input.type = "text";
+    input.className = "tag-row-input";
+    input.value = original;
+
+    let done = false;
+
+    function restore() {
+
+        input.replaceWith(nameEl);
+    }
+
+    function finish(save) {
+
+        if (done)
+            return;
+
+        done = true;
+
+        const next =
+            input.value.trim();
+
+        if (save && next && next !== original) {
+
+            postRename(original, next);
+            return;
+        }
+
+        restore();
+    }
+
+    input.addEventListener(
+        "keydown",
+        event => {
+
+            if (event.key === "Enter") {
+
+                event.preventDefault();
+                input.blur();
+            }
+
+            if (event.key === "Escape") {
+
+                event.preventDefault();
+                done = true;
+                restore();
+            }
+        }
+    );
+
+    input.addEventListener(
+        "blur",
+        () => finish(true)
+    );
+
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+}
+
+
 function createActionButton(label, className, onClick) {
 
     const button =
@@ -55,6 +130,11 @@ function createTagRow(tag, actions) {
     name.className = "tag-row-name";
     name.textContent = tag;
     name.title = tag;
+
+    name.addEventListener(
+        "click",
+        () => beginEdit(name, tag)
+    );
 
     const group =
         document.createElement("div");
