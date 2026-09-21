@@ -31,6 +31,8 @@ Abrir y compilar **`MediaTags.slnx`** (raíz del repo), plataforma **x64**.
 
 Los tres proyectos tienen `/utf-8` en `ClCompile`. Sin eso, los `MessageBox` en español salen como `Â¿Instalar` / `menÃº`.
 
+Release usa CRT estático (`/MT`) para no exigir `VCRUNTIME140_1.dll` ni el redistributable de Visual C++. Debug usa `/MTd`.
+
 Los textos de UI en C++ con tildes/ñ/¿ deben ir como escapes Unicode (`L"\u00BFInstalar..."`), no como UTF-8 crudo en el fuente.
 
 ### Carpetas que NO son el código activo
@@ -66,13 +68,13 @@ El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-la
 
 Un tag solo no publica el `.exe`: hay que esperar a que Actions termine en verde. Si el job falla, Releases queda vacío y en Tags solo se ven los zips de código fuente.
 
-Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.5`).
+Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.6`).
 
-La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.5` → `1.0.5.0`). Si cambias el manifiesto, súbela antes de etiquetar.
+La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.6` → `1.0.6.0`). Si cambias el manifiesto, súbela antes de etiquetar.
 
 ```bat
-git tag v1.0.5
-git push origin v1.0.5
+git tag v1.0.6
+git push origin v1.0.6
 ```
 
 El usuario final descarga ese `.exe` y no necesita Visual Studio. El MSIX sigue yendo autofirmado (`CN=MediaTags`); el instalador importa el `.cer` embebido. Defender puede seguir marcando falso positivo.
@@ -170,7 +172,7 @@ No ejecutar `MediaTags.exe` de `out\x64\Debug` como instalador si se puede evita
 
 - `uap10:AllowExternalContent=true` (sparse: el msix solo lleva manifiesto + logos 1×1).
 - `ProcessorArchitecture="x64"` (Neutral rompe la carga de la DLL en Explorer).
-- Versión actual: **1.0.5.0**. Si cambias el manifiesto, súbela.
+- Versión actual: **1.0.6.0**. Si cambias el manifiesto, súbela.
 - Menú Win11: **`desktop5:ItemType` / `desktop5:Verb`** dentro de `desktop4:FileExplorerContextMenus`. `desktop4:ItemType` **no aparece** en el menú moderno.
 - Publisher del cert autofirmado: `CN=MediaTags` (debe coincidir con `Identity/@Publisher`).
 - `build-msix.ps1` crea/reutiliza el cert en `Cert:\CurrentUser\My`, firma con SignTool, deja `.msix` y `.cer` en OutDir.
@@ -197,6 +199,7 @@ Igual para el resto de extensiones de `MediaTypes.h`.
 8. **LNK1168 al compilar** — `MediaTags.exe` abierto (a veces elevado). Cerrar procesos y recompilar.
 9. **Defender `Trojan:Win32/Bearfoos.Alml`** — falso positivo heurístico. La causa era `powershell -ExecutionPolicy Bypass` + `cmd.exe` + importar certificado + registrar Appx desde `Install.cpp`. Eso ya no está en el `.exe`. Si sigue saliendo: restaurar/permitir el archivo, usar `MediaTagsSetup.exe` (no el Debug suelto), y si hace falta exclusión o envío a WDSI. Un certificado Authenticode de verdad reduce falsos positivos. El PowerShell de los post-build (`build-msix.ps1`) **no** se incrusta en el binario.
 10. **WebP / GIF / BMP no guardan tags nativos** — `IsPropertyWritable(PKEY_Keywords)` es `S_FALSE`. En WebP `SetValue` devuelve `STG_E_ACCESSDENIED` (0x80030005). El Photo Property Handler de Windows solo escribe keywords con política JPEG/TIFF (PNG/AVIF sí). **No** inventar XMP propio: si el Explorador no puede mostrar Tags, no se registra el tipo. Ver `kRetiredMediaTagExtensions`.
+11. **`VCRUNTIME140_1.dll` no se encontró** — el instalador o el exe se compiló con CRT dinámico (`/MD`). Compilar Release con `/MT` (ya está en los tres `.vcxproj`).
 
 MakeAppx exige: `PublisherDisplayName` en una línea, `BackgroundColor` en VisualElements, GUID sin `{}`.
 

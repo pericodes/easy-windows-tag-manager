@@ -496,7 +496,7 @@ namespace
         std::wstring uninstall = L"\"" + exe + L"\" --uninstall";
         std::wstring display = kAppName;
         std::wstring publisher = L"Media Tags";
-        std::wstring version = L"1.0.5";
+        std::wstring version = L"1.0.6";
         DWORD noModify = 1;
 
         auto setSz = [&](const wchar_t* name, const std::wstring& value)
