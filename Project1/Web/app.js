@@ -308,8 +308,8 @@ newTag.addEventListener(
 );
 
 
-window.chrome.webview
-    .addEventListener(
+if (window.chrome && window.chrome.webview) {
+    window.chrome.webview.addEventListener(
         "message",
         event => {
 
@@ -330,3 +330,4 @@ window.chrome.webview
             renderTags();
         }
     );
+}

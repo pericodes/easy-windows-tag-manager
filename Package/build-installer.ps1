@@ -51,6 +51,11 @@ if (Test-Path $loader) {
 
 Copy-Item (Join-Path $OutDir "Web") (Join-Path $PayloadDir "Web") -Recurse
 
+$webIndex = Join-Path $PayloadDir "Web\index.html"
+if (-not (Test-Path $webIndex)) {
+    throw "Falta Web\index.html en el payload del instalador"
+}
+
 if (Test-Path $ZipPath) {
     Remove-Item $ZipPath -Force
 }

@@ -7,6 +7,7 @@
 #include <shlobj.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <sstream>
 #include <set>
 
@@ -308,6 +309,65 @@ bool WebViewApp::Create(
     return true;
 }
 
+void WebViewApp::ShowWebViewError(
+    const wchar_t* where,
+    HRESULT hr)
+{
+    wchar_t text[512]{};
+    swprintf_s(
+        text,
+        L"%s\nC\u00F3digo: 0x%08X\n\n"
+        L"Instala Microsoft Edge WebView2 Runtime si falta.",
+        where,
+        static_cast<unsigned>(hr)
+    );
+
+    MessageBoxW(
+        m_window,
+        text,
+        L"Media Tags",
+        MB_OK | MB_ICONERROR
+    );
+}
+
+void WebViewApp::NavigateToUi()
+{
+    if (!m_webview)
+        return;
+
+    ComPtr<ICoreWebView2_3> webview3;
+    if (SUCCEEDED(m_webview.As(&webview3)) &&
+        !m_webDir.empty())
+    {
+        const HRESULT mapped =
+            webview3->SetVirtualHostNameToFolderMapping(
+                L"mediatags.local",
+                m_webDir.c_str(),
+                COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW
+            );
+
+        if (SUCCEEDED(mapped))
+        {
+            m_webview->Navigate(
+                L"https://mediatags.local/index.html"
+            );
+            return;
+        }
+    }
+
+    std::wstring uri =
+        L"file:///" + m_webDir + L"/index.html";
+
+    std::replace(
+        uri.begin(),
+        uri.end(),
+        L'\\',
+        L'/'
+    );
+
+    m_webview->Navigate(uri.c_str());
+}
+
 void WebViewApp::InitWebView()
 {
     PWSTR localAppData = nullptr;
@@ -325,143 +385,191 @@ void WebViewApp::InitWebView()
         CoTaskMemFree(localAppData);
     }
 
-    CreateCoreWebView2EnvironmentWithOptions(
+    wchar_t exePath[MAX_PATH]{};
+    GetModuleFileNameW(
         nullptr,
-        userData.empty() ? nullptr : userData.c_str(),
-        nullptr,
-
-        Callback<
-            ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
-            [this](
-                HRESULT result,
-                ICoreWebView2Environment* env
-            ) -> HRESULT
-            {
-                if (FAILED(result))
-                    return result;
-
-                m_environment = env;
-
-                return env->CreateCoreWebView2Controller(
-                    m_window,
-
-                    Callback<
-                        ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
-                        [this](
-                            HRESULT result,
-                            ICoreWebView2Controller* controller
-                        ) -> HRESULT
-                        {
-                            if (FAILED(result))
-                                return result;
-
-                            m_controller = controller;
-
-                            m_controller->get_CoreWebView2(
-                                &m_webview
-                            );
-
-                            RECT bounds;
-
-                            GetClientRect(
-                                m_window,
-                                &bounds
-                            );
-
-                            m_controller->put_Bounds(
-                                bounds
-                            );
-
-                            m_webview->add_WebMessageReceived(
-                                Callback<
-                                    ICoreWebView2WebMessageReceivedEventHandler>(
-                                    [this](
-                                        ICoreWebView2*,
-                                        ICoreWebView2WebMessageReceivedEventArgs* args
-                                    ) -> HRESULT
-                                    {
-                                        LPWSTR message = nullptr;
-
-                                        if (SUCCEEDED(
-                                            args->get_WebMessageAsJson(
-                                                &message)))
-                                        {
-                                            OnMessage(message);
-
-                                            CoTaskMemFree(message);
-                                        }
-
-                                        return S_OK;
-                                    }
-                                ).Get(),
-                                nullptr
-                            );
-
-                            m_webview->add_NavigationCompleted(
-                                Callback<
-                                    ICoreWebView2NavigationCompletedEventHandler>(
-                                    [this](
-                                        ICoreWebView2*,
-                                        ICoreWebView2NavigationCompletedEventArgs* args
-                                    ) -> HRESULT
-                                    {
-                                        BOOL ok = FALSE;
-                                        if (args)
-                                            args->get_IsSuccess(&ok);
-
-                                        if (ok)
-                                            SendInitialData();
-
-                                        return S_OK;
-                                    }
-                                ).Get(),
-                                nullptr
-                            );
-
-                            //m_webview->Navigate(
-                            //    L"file:///C:/MediaTags/Web/index.html"
-                            //);
-
-                            wchar_t exePath[MAX_PATH]{};
-
-                            GetModuleFileNameW(
-                                nullptr,
-                                exePath,
-                                MAX_PATH
-                            );
-
-                            std::wstring base(exePath);
-
-                            size_t slash =
-                                base.find_last_of(L"\\/");
-
-                            base.resize(slash);
-
-                            std::wstring html =
-                                base +
-                                L"\\Web\\index.html";
-
-                            std::wstring uri =
-                                L"file:///" + html + L"?v=4";
-
-                            std::replace(
-                                uri.begin(),
-                                uri.end(),
-                                L'\\',
-                                L'/'
-                            );
-
-                            m_webview->Navigate(
-                                uri.c_str()
-                            );
-
-                            return S_OK;
-                        }
-                    ).Get()
-                );
-            }
-        ).Get()
+        exePath,
+        MAX_PATH
     );
+
+    std::wstring base(exePath);
+    size_t slash = base.find_last_of(L"\\/");
+    if (slash != std::wstring::npos)
+        base.resize(slash);
+
+    m_webDir = base + L"\\Web";
+    const std::wstring html =
+        m_webDir + L"\\index.html";
+
+    if (GetFileAttributesW(html.c_str()) ==
+        INVALID_FILE_ATTRIBUTES)
+    {
+        ShowWebViewError(
+            L"No se encontr\u00F3 Web\\index.html junto al ejecutable.",
+            HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)
+        );
+        return;
+    }
+
+    const HRESULT created =
+        CreateCoreWebView2EnvironmentWithOptions(
+            nullptr,
+            userData.empty() ? nullptr : userData.c_str(),
+            nullptr,
+
+            Callback<
+                ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
+                [this](
+                    HRESULT result,
+                    ICoreWebView2Environment* env
+                ) -> HRESULT
+                {
+                    if (FAILED(result) || !env)
+                    {
+                        ShowWebViewError(
+                            L"No se pudo iniciar WebView2.",
+                            result
+                        );
+                        return result;
+                    }
+
+                    m_environment = env;
+
+                    return env->CreateCoreWebView2Controller(
+                        m_window,
+
+                        Callback<
+                            ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
+                            [this](
+                                HRESULT result,
+                                ICoreWebView2Controller* controller
+                            ) -> HRESULT
+                            {
+                                if (FAILED(result) || !controller)
+                                {
+                                    ShowWebViewError(
+                                        L"No se pudo crear el visor WebView2.",
+                                        result
+                                    );
+                                    return result;
+                                }
+
+                                m_controller = controller;
+
+                                m_controller->get_CoreWebView2(
+                                    &m_webview
+                                );
+
+                                if (!m_webview)
+                                {
+                                    ShowWebViewError(
+                                        L"No se pudo obtener WebView2.",
+                                        E_FAIL
+                                    );
+                                    return E_FAIL;
+                                }
+
+                                RECT bounds{};
+                                GetClientRect(
+                                    m_window,
+                                    &bounds
+                                );
+
+                                m_controller->put_Bounds(bounds);
+                                m_controller->put_IsVisible(TRUE);
+
+                                m_webview->add_WebMessageReceived(
+                                    Callback<
+                                        ICoreWebView2WebMessageReceivedEventHandler>(
+                                        [this](
+                                            ICoreWebView2*,
+                                            ICoreWebView2WebMessageReceivedEventArgs* args
+                                        ) -> HRESULT
+                                        {
+                                            LPWSTR message = nullptr;
+
+                                            if (SUCCEEDED(
+                                                args->get_WebMessageAsJson(
+                                                    &message)))
+                                            {
+                                                OnMessage(message);
+                                                CoTaskMemFree(message);
+                                            }
+
+                                            return S_OK;
+                                        }
+                                    ).Get(),
+                                    nullptr
+                                );
+
+                                m_webview->add_NavigationCompleted(
+                                    Callback<
+                                        ICoreWebView2NavigationCompletedEventHandler>(
+                                        [this](
+                                            ICoreWebView2* sender,
+                                            ICoreWebView2NavigationCompletedEventArgs* args
+                                        ) -> HRESULT
+                                        {
+                                            BOOL ok = FALSE;
+                                            if (args)
+                                                args->get_IsSuccess(&ok);
+
+                                            LPWSTR uri = nullptr;
+                                            if (sender)
+                                                sender->get_Source(&uri);
+
+                                            const bool isUi =
+                                                uri &&
+                                                wcsstr(
+                                                    uri,
+                                                    L"mediatags.local"
+                                                );
+
+                                            if (uri)
+                                                CoTaskMemFree(uri);
+
+                                            if (!isUi)
+                                                return S_OK;
+
+                                            if (ok)
+                                            {
+                                                SendInitialData();
+                                                return S_OK;
+                                            }
+
+                                            COREWEBVIEW2_WEB_ERROR_STATUS status{};
+                                            if (args)
+                                                args->get_WebErrorStatus(&status);
+
+                                            wchar_t where[128]{};
+                                            swprintf_s(
+                                                where,
+                                                L"No se pudo cargar la interfaz (estado %d).",
+                                                static_cast<int>(status)
+                                            );
+                                            ShowWebViewError(where, E_FAIL);
+                                            return S_OK;
+                                        }
+                                    ).Get(),
+                                    nullptr
+                                );
+
+                                NavigateToUi();
+                                return S_OK;
+                            }
+                        ).Get()
+                    );
+                }
+            ).Get()
+        );
+
+    if (FAILED(created))
+    {
+        ShowWebViewError(
+            L"No se pudo iniciar WebView2.",
+            created
+        );
+    }
 }
 
 void WebViewApp::SendInitialData()

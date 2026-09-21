@@ -151,7 +151,21 @@ namespace
         if (Run(command) != 0)
             return {};
 
-        return extractDir;
+        if (fs::exists(extractDir / L"MediaTags.exe"))
+            return extractDir;
+
+        std::error_code itEc;
+        for (const auto& entry :
+             fs::directory_iterator(extractDir, itEc))
+        {
+            if (entry.is_directory() &&
+                fs::exists(entry.path() / L"MediaTags.exe"))
+            {
+                return entry.path();
+            }
+        }
+
+        return {};
     }
 
     bool HasArg(int argc, LPWSTR* argv, const wchar_t* name)
@@ -193,7 +207,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     }
 
     fs::path payload = ExtractPayload();
-    if (payload.empty() || !fs::exists(payload / L"MediaTags.exe"))
+    if (payload.empty() ||
+        !fs::exists(payload / L"MediaTags.exe") ||
+        !fs::exists(payload / L"Web" / L"index.html"))
     {
         MessageBoxW(
             nullptr,

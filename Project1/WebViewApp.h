@@ -38,7 +38,16 @@ private:
 
     std::vector<std::wstring> m_files;
 
+    std::wstring m_webDir;
+
     void InitWebView();
+
+    void ShowWebViewError(
+        const wchar_t* where,
+        HRESULT hr
+    );
+
+    void NavigateToUi();
 
     void OnMessage(
         const std::wstring& json
