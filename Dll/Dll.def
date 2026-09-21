@@ -1,0 +1,4 @@
+LIBRARY MediaTagsShell
+EXPORTS
+    DllGetClassObject PRIVATE
+    DllCanUnloadNow PRIVATE

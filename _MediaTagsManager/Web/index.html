@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionar tags</title>
+
+    <link rel="stylesheet"
+          href="style.css">
+</head>
+
+<body>
+
+<div class="window">
+
+    <h1>Gestionar tags</h1>
+
+    <div id="fileCount"
+         class="subtitle">
+    </div>
+
+    <h2>Tags comunes</h2>
+
+    <div id="tags"
+         class="tags">
+    </div>
+
+    <div class="buttons">
+
+        <button id="delete"
+                class="danger">
+            Eliminar
+        </button>
+
+        <button id="add"
+                class="primary">
+            Añadir
+        </button>
+
+    </div>
+
+</div>
+
+
+<div id="modal"
+     class="modal hidden">
+
+    <div class="dialog">
+
+        <h2>Añadir tag</h2>
+
+        <input id="newTag"
+               type="text"
+               autocomplete="off"
+               placeholder="Escribe un tag">
+
+        <div class="dialog-buttons">
+
+            <button id="cancel">
+                Cancelar
+            </button>
+
+            <button id="confirmAdd"
+                    class="primary">
+                Añadir
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script src="app.js"></script>
+
+</body>
+</html>
