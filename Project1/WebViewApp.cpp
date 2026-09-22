@@ -1,6 +1,7 @@
 #include "WebViewApp.h"
 #include "Install.h"
 #include "Tags.h"
+#include "Resource.h"
 #include "../Common/Loc.h"
 
 #include <windows.h>
@@ -320,7 +321,8 @@ bool WebViewApp::Create(
 {
     m_files = files;
 
-    WNDCLASSW wc{};
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = WndProc;
     wc.hInstance = GetModuleHandleW(nullptr);
     wc.lpszClassName = L"MediaTagsWindow";
@@ -328,11 +330,27 @@ bool WebViewApp::Create(
         nullptr,
         IDC_ARROW
     );
+    wc.hIcon = static_cast<HICON>(LoadImageW(
+        wc.hInstance,
+        MAKEINTRESOURCEW(IDI_PROJECT1),
+        IMAGE_ICON,
+        GetSystemMetrics(SM_CXICON),
+        GetSystemMetrics(SM_CYICON),
+        0
+    ));
+    wc.hIconSm = static_cast<HICON>(LoadImageW(
+        wc.hInstance,
+        MAKEINTRESOURCEW(IDI_SMALL),
+        IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON),
+        GetSystemMetrics(SM_CYSMICON),
+        0
+    ));
     wc.hbrBackground = CreateSolidBrush(
         RGB(0xF7, 0xF7, 0xF7)
     );
 
-    RegisterClassW(&wc);
+    RegisterClassExW(&wc);
 
     m_window = CreateWindowExW(
         0,

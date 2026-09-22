@@ -36,6 +36,20 @@ body {
     margin: 0;
 }
 
+.title-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.app-logo {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border-radius: 8px;
+}
+
 .lang-picker select {
     font: inherit;
     font-size: 12px;

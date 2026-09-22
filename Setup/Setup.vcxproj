@@ -72,6 +72,7 @@
     <OutDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>MediaTagsSetup.stub</TargetName>
+    <ApplicationIcon>..\Project1\Project1.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -156,6 +157,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Setup.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Setup.rc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Common\Loc.h" />

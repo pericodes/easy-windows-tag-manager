@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+static std::wstring GetAppDirectory();
+
 static const CLSID CLSID_MediaTags =
 {
     0x7d3b1f20,
@@ -177,9 +179,13 @@ ExplorerCommand::GetIcon(
     if (!icon)
         return E_POINTER;
 
-    *icon = nullptr;
+    const std::wstring path =
+        GetAppDirectory() + L"\\MediaTags.exe,0";
 
-    return E_NOTIMPL;
+    return SHStrDupW(
+        path.c_str(),
+        icon
+    );
 }
 
 HRESULT STDMETHODCALLTYPE
