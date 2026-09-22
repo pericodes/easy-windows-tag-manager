@@ -3,6 +3,7 @@
 
 #include "WebViewApp.h"
 #include "Install.h"
+#include "../Common/Loc.h"
 
 #include <fstream>
 #include <string>
@@ -161,7 +162,7 @@ int WINAPI wWinMain(
     {
         MessageBoxW(
             nullptr,
-            L"No se pudieron leer los archivos seleccionados.",
+            Loc(Str::CouldNotReadSelection),
             L"Media Tags",
             MB_OK | MB_ICONERROR);
         CoUninitialize();
@@ -174,7 +175,7 @@ int WINAPI wWinMain(
     {
         MessageBoxW(
             nullptr,
-            L"No se pudo abrir la ventana de Media Tags.",
+            Loc(Str::CouldNotOpenWindow),
             L"Media Tags",
             MB_OK | MB_ICONERROR);
         CoUninitialize();

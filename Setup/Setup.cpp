@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "../Common/Loc.h"
+
 #include <string>
 #include <vector>
 #include <filesystem>
@@ -197,8 +199,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     {
         const int choice = MessageBoxW(
             nullptr,
-            L"\u00BFInstalar Media Tags?\n\n"
-            L"Se a\u00F1adir\u00E1 Gestionar tags al men\u00FA de fotos y v\u00EDdeos.",
+            Loc(Str::PromptInstall),
             L"Media Tags",
             MB_OKCANCEL | MB_ICONQUESTION);
 
@@ -213,8 +214,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     {
         MessageBoxW(
             nullptr,
-            L"Este instalador no contiene los archivos de Media Tags.\n"
-            L"Compila la soluci\u00F3n x64 para generar MediaTagsSetup.exe.",
+            Loc(Str::SetupMissingFiles),
             L"Media Tags",
             MB_OK | MB_ICONERROR);
         return 1;
@@ -232,7 +232,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
     {
         MessageBoxW(
             nullptr,
-            L"La instalaci\u00F3n no se complet\u00F3. Acepta el control de cuentas de usuario e int\u00E9ntalo de nuevo.",
+            Loc(Str::SetupDidNotFinish),
             L"Media Tags",
             MB_OK | MB_ICONERROR);
         return code;
@@ -243,9 +243,8 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
         MessageBoxW(
             nullptr,
             uninstall
-                ? L"Media Tags se ha desinstalado."
-                : L"Media Tags est\u00E1 listo.\n\n"
-                  L"Clic derecho en una foto o un v\u00EDdeo: Gestionar tags.",
+                ? Loc(Str::Uninstalled)
+                : Loc(Str::InstallReady),
             L"Media Tags",
             MB_OK | MB_ICONINFORMATION);
     }

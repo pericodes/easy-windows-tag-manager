@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="Cache-Control"
           content="no-store">
-    <title>Gestionar tags</title>
+    <title>Manage tags</title>
 
     <link rel="stylesheet"
           href="style.css">
@@ -15,7 +15,20 @@
 
 <div class="window">
 
-    <h1>Gestionar tags</h1>
+    <div class="title-row">
+
+        <h1 data-i18n="manageTags">Manage tags</h1>
+
+        <label class="lang-picker">
+            <select id="lang"
+                    aria-label="Language">
+                <option value="auto">Windows</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+            </select>
+        </label>
+
+    </div>
 
     <div id="fileCount"
          class="subtitle">
@@ -23,11 +36,12 @@
 
     <div class="section-header">
 
-        <h2>Tags comunes</h2>
+        <h2 data-i18n="commonTags">Common tags</h2>
 
         <button id="add"
-                class="primary">
-            Añadir
+                class="primary"
+                data-i18n="add">
+            Add
         </button>
 
     </div>
@@ -39,7 +53,7 @@
     <div id="otherSection"
          class="hidden">
 
-        <h2>Otros tags</h2>
+        <h2 data-i18n="otherTags">Other tags</h2>
 
         <div id="otherTags"
              class="tags other-tags">
@@ -55,22 +69,25 @@
 
     <div class="dialog">
 
-        <h2>Añadir tag</h2>
+        <h2 data-i18n="addTag">Add tag</h2>
 
         <input id="newTag"
                type="text"
                autocomplete="off"
-               placeholder="Escribe un tag">
+               data-i18n-placeholder="placeholder"
+               placeholder="Type a tag">
 
         <div class="dialog-buttons">
 
-            <button id="cancel">
-                Cancelar
+            <button id="cancel"
+                    data-i18n="cancel">
+                Cancel
             </button>
 
             <button id="confirmAdd"
-                    class="primary">
-                Añadir
+                    class="primary"
+                    data-i18n="add">
+                Add
             </button>
 
         </div>

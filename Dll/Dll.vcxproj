@@ -179,6 +179,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="ClassFactory.h" />
     <ClInclude Include="ExplorerCommand.h" />
+    <ClInclude Include="..\Common\Loc.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Dll.def" />

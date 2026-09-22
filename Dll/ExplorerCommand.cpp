@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "ExplorerCommand.h"
+#include "../Common/Loc.h"
 
 #include <shlobj.h>
 #include <shlwapi.h>
@@ -163,7 +164,7 @@ ExplorerCommand::GetTitle(
         return E_POINTER;
 
     return SHStrDupW(
-        L"Gestionar tags",
+        Loc(Str::ManageTags),
         title
     );
 }
@@ -190,7 +191,7 @@ ExplorerCommand::GetToolTip(
         return E_POINTER;
 
     return SHStrDupW(
-        L"A\u00F1adir o eliminar tags",
+        Loc(Str::ManageTagsTooltip),
         tooltip
     );
 }
@@ -498,7 +499,7 @@ ExplorerCommand::Invoke(
     {
         MessageBoxW(
             nullptr,
-            L"No se pudo abrir Media Tags.",
+            Loc(Str::CouldNotOpenApp),
             L"Media Tags",
             MB_OK | MB_ICONERROR);
         return HRESULT_FROM_WIN32(GetLastError());

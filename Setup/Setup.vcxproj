@@ -158,6 +158,9 @@
     <ClCompile Include="Setup.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\Loc.h" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Project1\Project1.vcxproj">
       <Project>{92fff247-c813-49eb-836c-85de28ad5663}</Project>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

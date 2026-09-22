@@ -12,7 +12,7 @@
     <Identity
         Name="MediaTags"
         Publisher="CN=MediaTags"
-        Version="1.0.7.0"
+        Version="1.0.8.0"
         ProcessorArchitecture="x64" />
 
     <Properties>
@@ -24,6 +24,7 @@
     </Properties>
 
     <Resources>
+        <Resource Language="en-us" />
         <Resource Language="es-es" />
     </Resources>
 

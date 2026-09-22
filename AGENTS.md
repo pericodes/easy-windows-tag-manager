@@ -43,7 +43,7 @@ Ignóralas salvo para copiar ideas antiguas:
 - `_MediaTagsManager/` — fuentes originales de referencia
 - `Dll/Dll.slnx`, `Project1/Project1.slnx` — soluciones individuales antiguas
 
-El código que se mantiene es: `Dll/`, `Project1/`, `Setup/`, `Package/`.
+El código que se mantiene es: `Dll/`, `Project1/`, `Setup/`, `Package/`, `Common/`.
 
 ## Cómo compilar
 
@@ -68,13 +68,13 @@ El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-la
 
 Un tag solo no publica el `.exe`: hay que esperar a que Actions termine en verde. Si el job falla, Releases queda vacío y en Tags solo se ven los zips de código fuente.
 
-Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.7`).
+Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.8`).
 
-La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.7` → `1.0.7.0`). Si cambias el manifiesto, súbela antes de etiquetar.
+La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.8` → `1.0.8.0`). Si cambias el manifiesto, súbela antes de etiquetar.
 
 ```bat
-git tag v1.0.7
-git push origin v1.0.7
+git tag v1.0.8
+git push origin v1.0.8
 ```
 
 El usuario final descarga ese `.exe` y no necesita Visual Studio. El MSIX sigue yendo autofirmado (`CN=MediaTags`); el instalador importa el `.cer` embebido. Defender puede seguir marcando falso positivo.
@@ -128,11 +128,11 @@ Punto de entrada: `Project1.cpp` (`wWinMain`). Argumentos:
 
 - `WebViewApp.cpp`: ventana + WebView2.
 - Tras `Navigate`, **`NavigationCompleted` debe llamar a `SendInitialData()`**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco.
-- Tras `action: add`, `delete` o `rename`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
+- Tras `action: add`, `delete`, `rename` o `setLang`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
 - User data de WebView2: `%LOCALAPPDATA%\MediaTags\WebView2`.
 - La UI se carga con `SetVirtualHostNameToFolderMapping` (`https://mediatags.local/`), no con `file://`. Si WebView2 no arranca, hay `MessageBox` con el HRESULT.
-- JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."]}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos.
-- JSON desde JS: `{"action":"add"|"delete","tags":[...]}` o `{"action":"rename","from":"...","to":"..."}`. `rename` solo sustituye el tag en los archivos que ya lo tienen; no lo añade al resto. Parsear el array `"tags"` o los campos `"from"`/`"to"`, no todas las cadenas entre comillas.
+- JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."],"lang":"es","pref":"auto"}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos. `lang` es el idioma efectivo (`en`/`es`); `pref` es la elección (`auto`/`en`/`es`).
+- JSON desde JS: `{"action":"add"|"delete","tags":[...]}`, `{"action":"rename","from":"...","to":"..."}` o `{"action":"setLang","lang":"auto"|"en"|"es"}`. `rename` solo sustituye el tag en los archivos que ya lo tienen; no lo añade al resto. Parsear el array `"tags"` o los campos `"from"`/`"to"`/`"lang"`, no todas las cadenas entre comillas.
 
 `Tags.cpp`:
 
@@ -173,7 +173,7 @@ No ejecutar `MediaTags.exe` de `out\x64\Debug` como instalador si se puede evita
 
 - `uap10:AllowExternalContent=true` (sparse: el msix solo lleva manifiesto + logos 1×1).
 - `ProcessorArchitecture="x64"` (Neutral rompe la carga de la DLL en Explorer).
-- Versión actual: **1.0.7.0**. Si cambias el manifiesto, súbela.
+- Versión actual: **1.0.8.0**. Si cambias el manifiesto, súbela.
 - Menú Win11: **`desktop5:ItemType` / `desktop5:Verb`** dentro de `desktop4:FileExplorerContextMenus`. `desktop4:ItemType` **no aparece** en el menú moderno.
 - Publisher del cert autofirmado: `CN=MediaTags` (debe coincidir con `Identity/@Publisher`).
 - `build-msix.ps1` crea/reutiliza el cert en `Cert:\CurrentUser\My`, firma con SignTool, deja `.msix` y `.cer` en OutDir.
@@ -187,6 +187,12 @@ HKCU\Software\Classes\SystemFileAssociations\.jpg\shell\MediaTags
 ```
 
 Igual para el resto de extensiones de `MediaTypes.h`.
+
+## Idioma (en / es)
+
+Por defecto sigue el idioma de Windows (`GetUserDefaultUILanguage()`: español si el primario es `LANG_SPANISH`, si no inglés). El usuario puede cambiarlo en el selector de la UI (Windows / English / Español). La elección se guarda en `HKCU\Software\MediaTags\Language` (`auto` | `en` | `es`).
+
+Las cadenas nativas (menú, MessageBox, instalador) están en `Common/Loc.h`. El menú moderno (`IExplorerCommand::GetTitle`) lee esa preferencia en cada clic. El menú clásico (`MUIVerb` en HKCU) se reescribe al instalar y al cambiar idioma (`UpdateLocalizedShellVerbs`). El nombre del producto **Media Tags** no se traduce; en español se mantiene la palabra **tags**.
 
 ## Errores ya vistos y cómo no repetirlos
 

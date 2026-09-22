@@ -1,5 +1,6 @@
 #include "Install.h"
 #include "MediaTypes.h"
+#include "../Common/Loc.h"
 
 #include <windows.h>
 #include <shlobj.h>
@@ -413,7 +414,7 @@ namespace
         fs::create_directories(to, ec);
         if (ec)
         {
-            error = L"No se pudo crear " + to.wstring();
+            error = std::wstring(Loc(Str::CouldNotCreatePrefix)) + to.wstring();
             return false;
         }
 
@@ -430,18 +431,18 @@ namespace
             if (!fs::exists(src))
             {
                 error =
-                    L"Falta " +
+                    std::wstring(Loc(Str::MissingFilePrefix)) +
                     src.wstring() +
-                    L". Compila la soluci\u00F3n x64 para generar el instalador.";
+                    Loc(Str::MissingFileSuffix);
                 return false;
             }
 
             if (!CopyReplaceFile(src, to / name, ec))
             {
                 error =
-                    L"No se pudo actualizar " +
-                    std::wstring(name) +
-                    L". Cierra el Explorador de archivos y vuelve a instalar.";
+                    std::wstring(Loc(Str::CouldNotUpdatePrefix)) +
+                    name +
+                    Loc(Str::CouldNotUpdateSuffix);
                 return false;
             }
         }
@@ -454,7 +455,7 @@ namespace
         fs::path webTo = to / L"Web";
         if (!fs::exists(webFrom))
         {
-            error = L"Falta la carpeta Web junto al ejecutable.";
+            error = Loc(Str::MissingWebFolder);
             return false;
         }
 
@@ -468,7 +469,7 @@ namespace
 
         if (ec)
         {
-            error = L"No se pudo copiar la interfaz Web.";
+            error = Loc(Str::CouldNotCopyWeb);
             return false;
         }
 
@@ -496,7 +497,7 @@ namespace
         std::wstring uninstall = L"\"" + exe + L"\" --uninstall";
         std::wstring display = kAppName;
         std::wstring publisher = L"Media Tags";
-        std::wstring version = L"1.0.7";
+        std::wstring version = L"1.0.8";
         DWORD noModify = 1;
 
         auto setSz = [&](const wchar_t* name, const std::wstring& value)
@@ -586,6 +587,50 @@ namespace
         }
     }
 
+    void WriteClassicVerbLabels()
+    {
+        const wchar_t* title = Loc(Str::ManageTags);
+
+        for (const wchar_t* ext : kMediaTagExtensions)
+        {
+            const std::wstring verb =
+                std::wstring(
+                    L"Software\\Classes\\SystemFileAssociations\\") +
+                ext +
+                L"\\shell\\MediaTags";
+
+            HKEY key = nullptr;
+            if (RegOpenKeyExW(
+                    HKEY_CURRENT_USER,
+                    verb.c_str(),
+                    0,
+                    KEY_SET_VALUE,
+                    &key) != ERROR_SUCCESS)
+            {
+                continue;
+            }
+
+            const DWORD bytes = static_cast<DWORD>(
+                (wcslen(title) + 1) * sizeof(wchar_t));
+
+            RegSetValueExW(
+                key,
+                nullptr,
+                0,
+                REG_SZ,
+                reinterpret_cast<const BYTE*>(title),
+                bytes);
+            RegSetValueExW(
+                key,
+                L"MUIVerb",
+                0,
+                REG_SZ,
+                reinterpret_cast<const BYTE*>(title),
+                bytes);
+            RegCloseKey(key);
+        }
+    }
+
     void RegisterClassicMenu(const fs::path& dir)
     {
         const std::wstring clsid =
@@ -610,8 +655,8 @@ namespace
                 ext +
                 L"\\shell\\MediaTags";
 
-            SetKeyValue(verb, nullptr, L"Gestionar tags");
-            SetKeyValue(verb, L"MUIVerb", L"Gestionar tags");
+            SetKeyValue(verb, nullptr, Loc(Str::ManageTags));
+            SetKeyValue(verb, L"MUIVerb", Loc(Str::ManageTags));
             SetKeyValue(verb, L"Icon", exe);
             SetKeyValue(verb, L"ExplorerCommandHandler", clsid);
             SetKeyValue(verb, L"MultiSelectModel", L"Player");
@@ -656,7 +701,7 @@ namespace
         if (!ImportCertificate(dir / L"MediaTags.cer"))
         {
             Show(
-                L"No se pudo confiar el certificado de Media Tags.",
+                Loc(Str::CouldNotTrustCert),
                 silent,
                 MB_ICONERROR);
             return 1;
@@ -675,7 +720,7 @@ namespace
         if (FAILED(hr))
         {
             Show(
-                L"No se pudo iniciar el registro de Media Tags.",
+                Loc(Str::CouldNotStartRegistration),
                 silent,
                 MB_ICONERROR);
             return static_cast<int>(hr);
@@ -686,7 +731,7 @@ namespace
         if (FAILED(hr))
         {
             Show(
-                L"Este Windows no admite el registro del men\u00FA moderno.",
+                Loc(Str::WindowsNoModernMenu),
                 silent,
                 MB_ICONERROR);
             return static_cast<int>(hr);
@@ -732,7 +777,7 @@ namespace
         if (FAILED(hr) || !operation)
         {
             Show(
-                L"No se pudo registrar Media Tags.",
+                Loc(Str::CouldNotRegister),
                 silent,
                 MB_ICONERROR);
             return static_cast<int>(hr);
@@ -765,7 +810,7 @@ namespace
 
         if (FAILED(extended))
         {
-            std::wstring message = L"No se pudo registrar Media Tags.";
+            std::wstring message = Loc(Str::CouldNotRegister);
             if (!details.empty())
                 message += L"\n\n" + details;
             Show(message.c_str(), silent, MB_ICONERROR);
@@ -839,7 +884,7 @@ int InstallMediaTags(bool silent)
     const fs::path dest = InstallDir();
     if (dest.empty())
     {
-        Show(L"No se pudo localizar AppData.", silent, MB_ICONERROR);
+        Show(Loc(Str::CouldNotFindAppData), silent, MB_ICONERROR);
         return 1;
     }
 
@@ -859,10 +904,7 @@ int InstallMediaTags(bool silent)
 
     WriteUninstallKey(dest);
     RegisterClassicMenu(dest);
-    Show(
-        L"Media Tags est\u00E1 listo.\n\n"
-        L"Clic derecho en una foto o un v\u00EDdeo: Gestionar tags.",
-        silent);
+    Show(Loc(Str::InstallReady), silent);
 
     return 0;
 }
@@ -878,7 +920,7 @@ int UninstallMediaTags(bool silent)
     DeleteUninstallKey();
     DeleteInstallFiles(dest);
 
-    Show(L"Media Tags se ha desinstalado.", silent);
+    Show(Loc(Str::Uninstalled), silent);
 
     if (!dest.empty() && fs::exists(dest))
         ScheduleDelete(dest);
@@ -895,10 +937,8 @@ int PromptMediaTagsSetup()
     const int choice = MessageBoxW(
         nullptr,
         leftover
-            ? L"Hay una instalaci\u00F3n anterior de Media Tags.\n\n"
-              L"\u00BFQuieres reinstalarla?"
-            : L"\u00BFInstalar Media Tags?\n\n"
-              L"Se a\u00F1adir\u00E1 Gestionar tags al men\u00FA de fotos y v\u00EDdeos.",
+            ? Loc(Str::PromptReinstall)
+            : Loc(Str::PromptInstall),
         kAppName,
         MB_OKCANCEL | MB_ICONQUESTION);
 
@@ -906,4 +946,14 @@ int PromptMediaTagsSetup()
         return 0;
 
     return InstallMediaTags(false);
+}
+
+void UpdateLocalizedShellVerbs()
+{
+    WriteClassicVerbLabels();
+    SHChangeNotify(
+        SHCNE_ASSOCCHANGED,
+        SHCNF_IDLIST,
+        nullptr,
+        nullptr);
 }

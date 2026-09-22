@@ -1,6 +1,7 @@
 #include "WebViewApp.h"
-
+#include "Install.h"
 #include "Tags.h"
+#include "../Common/Loc.h"
 
 #include <windows.h>
 #include <shobjidl.h>
@@ -284,7 +285,7 @@ bool WebViewApp::Create(
     m_window = CreateWindowExW(
         0,
         wc.lpszClassName,
-        L"Gestionar tags",
+        Loc(Str::ManageTags),
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
@@ -316,8 +317,7 @@ void WebViewApp::ShowWebViewError(
     wchar_t text[512]{};
     swprintf_s(
         text,
-        L"%s\nC\u00F3digo: 0x%08X\n\n"
-        L"Instala Microsoft Edge WebView2 Runtime si falta.",
+        Loc(Str::WebViewErrorFormat),
         where,
         static_cast<unsigned>(hr)
     );
@@ -405,7 +405,7 @@ void WebViewApp::InitWebView()
         INVALID_FILE_ATTRIBUTES)
     {
         ShowWebViewError(
-            L"No se encontr\u00F3 Web\\index.html junto al ejecutable.",
+            Loc(Str::WebViewHtmlMissing),
             HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)
         );
         return;
@@ -427,7 +427,7 @@ void WebViewApp::InitWebView()
                     if (FAILED(result) || !env)
                     {
                         ShowWebViewError(
-                            L"No se pudo iniciar WebView2.",
+                            Loc(Str::WebViewStartFailed),
                             result
                         );
                         return result;
@@ -448,7 +448,7 @@ void WebViewApp::InitWebView()
                                 if (FAILED(result) || !controller)
                                 {
                                     ShowWebViewError(
-                                        L"No se pudo crear el visor WebView2.",
+                                        Loc(Str::WebViewControllerFailed),
                                         result
                                     );
                                     return result;
@@ -463,7 +463,7 @@ void WebViewApp::InitWebView()
                                 if (!m_webview)
                                 {
                                     ShowWebViewError(
-                                        L"No se pudo obtener WebView2.",
+                                        Loc(Str::WebViewGetFailed),
                                         E_FAIL
                                     );
                                     return E_FAIL;
@@ -544,7 +544,7 @@ void WebViewApp::InitWebView()
                                             wchar_t where[128]{};
                                             swprintf_s(
                                                 where,
-                                                L"No se pudo cargar la interfaz (estado %d).",
+                                                Loc(Str::WebViewLoadFailed),
                                                 static_cast<int>(status)
                                             );
                                             ShowWebViewError(where, E_FAIL);
@@ -566,7 +566,7 @@ void WebViewApp::InitWebView()
     if (FAILED(created))
     {
         ShowWebViewError(
-            L"No se pudo iniciar WebView2.",
+            Loc(Str::WebViewStartFailed),
             created
         );
     }
@@ -605,7 +605,11 @@ void WebViewApp::SendInitialData()
 
     AppendJsonArray(json, other);
 
-    json << L"}";
+    json << L",\"lang\":\""
+         << LangCode()
+         << L"\",\"pref\":\""
+         << PrefCode()
+         << L"\"}";
 
     m_webview->PostWebMessageAsJson(
         json.str().c_str()
@@ -615,6 +619,23 @@ void WebViewApp::SendInitialData()
 void WebViewApp::OnMessage(
     const std::wstring& json)
 {
+    if (json.find(
+            L"\"action\":\"setLang\"")
+        != std::wstring::npos)
+    {
+        auto pref =
+            ParseJsonStringField(json, L"lang");
+
+        SetAppLang(ParseLang(pref.c_str()));
+
+        if (m_window)
+            SetWindowTextW(m_window, Loc(Str::ManageTags));
+
+        UpdateLocalizedShellVerbs();
+        SendInitialData();
+        return;
+    }
+
     if (json.find(
             L"\"action\":\"rename\"")
         != std::wstring::npos)

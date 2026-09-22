@@ -1,5 +1,34 @@
 let commonTags = [];
 let otherTags = [];
+let fileCountValue = 0;
+let currentLang = "en";
+
+const strings = {
+    en: {
+        manageTags: "Manage tags",
+        commonTags: "Common tags",
+        add: "Add",
+        otherTags: "Other tags",
+        addTag: "Add tag",
+        placeholder: "Type a tag",
+        cancel: "Cancel",
+        emptyCommon: "No common tags.",
+        remove: "Remove",
+        addToAll: "Add to all"
+    },
+    es: {
+        manageTags: "Gestionar tags",
+        commonTags: "Tags comunes",
+        add: "Añadir",
+        otherTags: "Otros tags",
+        addTag: "Añadir tag",
+        placeholder: "Escribe un tag",
+        cancel: "Cancelar",
+        emptyCommon: "No hay tags comunes.",
+        remove: "Eliminar",
+        addToAll: "Añadir a todos"
+    }
+};
 
 const tagsContainer =
     document.getElementById("tags");
@@ -18,6 +47,64 @@ const modal =
 
 const newTag =
     document.getElementById("newTag");
+
+const langSelect =
+    document.getElementById("lang");
+
+
+function t(key) {
+
+    const table =
+        strings[currentLang] || strings.en;
+
+    return table[key] || strings.en[key] || key;
+}
+
+
+function filesLabel(count) {
+
+    if (currentLang === "es") {
+
+        return count === 1
+            ? "1 archivo seleccionado"
+            : `${count} archivos seleccionados`;
+    }
+
+    return count === 1
+        ? "1 file selected"
+        : `${count} files selected`;
+}
+
+
+function applyI18n(lang) {
+
+    currentLang =
+        lang === "es" ? "es" : "en";
+
+    document.documentElement.lang =
+        currentLang;
+
+    document.title = t("manageTags");
+
+    document.querySelectorAll("[data-i18n]").forEach(
+        el => {
+            el.textContent = t(el.dataset.i18n);
+        }
+    );
+
+    document.querySelectorAll("[data-i18n-placeholder]").forEach(
+        el => {
+            el.placeholder =
+                t(el.dataset.i18nPlaceholder);
+        }
+    );
+
+    if (fileCount)
+        fileCount.textContent =
+            filesLabel(fileCountValue);
+
+    renderTags();
+}
 
 
 function postAction(action, tags) {
@@ -160,8 +247,7 @@ function renderCommonTags() {
         const empty =
             document.createElement("div");
 
-        empty.textContent =
-            "No hay tags comunes.";
+        empty.textContent = t("emptyCommon");
 
         empty.style.color =
             "#777";
@@ -178,7 +264,7 @@ function renderCommonTags() {
         tagsContainer.appendChild(
             createTagRow(tag, [
                 createActionButton(
-                    "Eliminar",
+                    t("remove"),
                     "danger small",
                     () => postAction("delete", [tag])
                 )
@@ -213,12 +299,12 @@ function renderOtherTags() {
         otherTagsContainer.appendChild(
             createTagRow(tag, [
                 createActionButton(
-                    "Eliminar",
+                    t("remove"),
                     "danger small",
                     () => postAction("delete", [tag])
                 ),
                 createActionButton(
-                    "Añadir a todos",
+                    t("addToAll"),
                     "primary small",
                     () => postAction("add", [tag])
                 )
@@ -308,6 +394,24 @@ newTag.addEventListener(
 );
 
 
+if (langSelect) {
+
+    langSelect.addEventListener(
+        "change",
+        () => {
+
+            if (!(window.chrome && window.chrome.webview))
+                return;
+
+            chrome.webview.postMessage({
+                action: "setLang",
+                lang: langSelect.value
+            });
+        }
+    );
+}
+
+
 if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener(
         "message",
@@ -324,10 +428,13 @@ if (window.chrome && window.chrome.webview) {
             otherTags =
                 data.other || [];
 
-            fileCount.textContent =
-                `${data.files} archivo(s) seleccionado(s)`;
+            fileCountValue =
+                data.files || 0;
 
-            renderTags();
+            if (langSelect && data.pref)
+                langSelect.value = data.pref;
+
+            applyI18n(data.lang);
         }
     );
 }
