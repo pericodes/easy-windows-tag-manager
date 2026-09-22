@@ -4,7 +4,9 @@
 #include <wrl.h>
 #include <WebView2.h>
 
+#include <atomic>
 #include <string>
+#include <thread>
 #include <vector>
 
 class WebViewApp
@@ -39,6 +41,14 @@ private:
     std::vector<std::wstring> m_files;
 
     std::wstring m_webDir;
+    std::wstring m_initialJson;
+
+    std::thread m_tagThread;
+    std::atomic<bool> m_tagsReady{ false };
+    std::atomic<bool> m_pageReady{ false };
+    std::atomic<bool> m_initialSent{ false };
+
+    void StartLoadingTags();
 
     void InitWebView();
 
@@ -54,6 +64,12 @@ private:
     );
 
     void SendInitialData();
+
+    void TrySendInitialData();
+
+    std::wstring UiUrl(
+        bool virtualHost
+    );
 
     static LRESULT CALLBACK WndProc(
         HWND,

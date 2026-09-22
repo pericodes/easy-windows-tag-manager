@@ -127,10 +127,10 @@ Punto de entrada: `Project1.cpp` (`wWinMain`). Argumentos:
 `Project1/main.cpp` es duplicado muerto; no está en el vcxproj.
 
 - `WebViewApp.cpp`: ventana + WebView2.
-- Tras `Navigate`, **`NavigationCompleted` debe llamar a `SendInitialData()`**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco.
+- Tras `Navigate`, **`NavigationCompleted` debe enviar los datos a JS**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco. Los tags se leen en un hilo aparte mientras arranca WebView2; no bloquear el callback con `Tags::Read`.
 - Tras `action: add`, `delete`, `rename` o `setLang`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
 - User data de WebView2: `%LOCALAPPDATA%\MediaTags\WebView2`.
-- La UI se carga con `SetVirtualHostNameToFolderMapping` (`https://mediatags.local/`), no con `file://`. Si WebView2 no arranca, hay `MessageBox` con el HRESULT.
+- La UI se carga con `SetVirtualHostNameToFolderMapping` (`https://app.mediatags/`), no con `file://` ni con un host `.local` (eso dispara mDNS y deja la ventana en blanco unos segundos). Si WebView2 no arranca, hay `MessageBox` con el HRESULT.
 - JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."],"lang":"es","pref":"auto"}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos. `lang` es el idioma efectivo (`en`/`es`); `pref` es la elección (`auto`/`en`/`es`).
 - JSON desde JS: `{"action":"add"|"delete","tags":[...]}`, `{"action":"rename","from":"...","to":"..."}` o `{"action":"setLang","lang":"auto"|"en"|"es"}`. `rename` solo sustituye el tag en los archivos que ya lo tienen; no lo añade al resto. Parsear el array `"tags"` o los campos `"from"`/`"to"`/`"lang"`, no todas las cadenas entre comillas.
 

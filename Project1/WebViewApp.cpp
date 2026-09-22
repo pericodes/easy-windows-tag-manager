@@ -12,6 +12,12 @@
 #include <sstream>
 #include <set>
 
+namespace
+{
+    constexpr wchar_t kWebHost[] = L"app.mediatags";
+    constexpr UINT WM_APP_TAGS_READY = WM_APP + 1;
+}
+
 using Microsoft::WRL::Callback;
 using Microsoft::WRL::ComPtr;
 
@@ -254,6 +260,46 @@ namespace
             unique.end()
         };
     }
+
+    std::wstring BuildTagsJson(
+        const std::vector<std::wstring>& files)
+    {
+        std::vector<std::vector<std::wstring>>
+            allTags;
+
+        for (const auto& file : files)
+        {
+            allTags.push_back(
+                Tags::Read(file)
+            );
+        }
+
+        auto common =
+            Intersection(allTags);
+
+        auto other =
+            OtherTags(allTags, common);
+
+        std::wstringstream json;
+
+        json << L"{\"files\":"
+             << files.size()
+             << L",\"tags\":";
+
+        AppendJsonArray(json, common);
+
+        json << L",\"other\":";
+
+        AppendJsonArray(json, other);
+
+        json << L",\"lang\":\""
+             << LangCode()
+             << L"\",\"pref\":\""
+             << PrefCode()
+             << L"\"}";
+
+        return json.str();
+    }
 }
 
 WebViewApp::WebViewApp()
@@ -263,6 +309,9 @@ WebViewApp::WebViewApp()
 
 WebViewApp::~WebViewApp()
 {
+    if (m_tagThread.joinable())
+        m_tagThread.join();
+
     s_instance = nullptr;
 }
 
@@ -278,6 +327,9 @@ bool WebViewApp::Create(
     wc.hCursor = LoadCursorW(
         nullptr,
         IDC_ARROW
+    );
+    wc.hbrBackground = CreateSolidBrush(
+        RGB(0xF7, 0xF7, 0xF7)
     );
 
     RegisterClassW(&wc);
@@ -300,14 +352,48 @@ bool WebViewApp::Create(
     if (!m_window)
         return false;
 
+    StartLoadingTags();
+    InitWebView();
+
     ShowWindow(m_window, SW_SHOWNORMAL);
     UpdateWindow(m_window);
     SetForegroundWindow(m_window);
     BringWindowToTop(m_window);
 
-    InitWebView();
-
     return true;
+}
+
+void WebViewApp::StartLoadingTags()
+{
+    m_tagThread = std::thread(
+        [this]()
+        {
+            const HRESULT com =
+                CoInitializeEx(
+                    nullptr,
+                    COINIT_APARTMENTTHREADED
+                );
+
+            std::wstring json =
+                BuildTagsJson(m_files);
+
+            if (SUCCEEDED(com))
+                CoUninitialize();
+
+            m_initialJson = std::move(json);
+            m_tagsReady.store(true);
+
+            if (m_window)
+            {
+                PostMessageW(
+                    m_window,
+                    WM_APP_TAGS_READY,
+                    0,
+                    0
+                );
+            }
+        }
+    );
 }
 
 void WebViewApp::ShowWebViewError(
@@ -341,31 +427,54 @@ void WebViewApp::NavigateToUi()
     {
         const HRESULT mapped =
             webview3->SetVirtualHostNameToFolderMapping(
-                L"mediatags.local",
+                kWebHost,
                 m_webDir.c_str(),
                 COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_ALLOW
             );
 
         if (SUCCEEDED(mapped))
         {
-            m_webview->Navigate(
-                L"https://mediatags.local/index.html"
-            );
+            const std::wstring url =
+                UiUrl(true);
+
+            m_webview->Navigate(url.c_str());
             return;
         }
     }
 
-    std::wstring uri =
-        L"file:///" + m_webDir + L"/index.html";
+    const std::wstring url =
+        UiUrl(false);
 
-    std::replace(
-        uri.begin(),
-        uri.end(),
-        L'\\',
-        L'/'
-    );
+    m_webview->Navigate(url.c_str());
+}
 
-    m_webview->Navigate(uri.c_str());
+std::wstring WebViewApp::UiUrl(
+    bool virtualHost)
+{
+    std::wstring url;
+
+    if (virtualHost)
+    {
+        url = L"https://";
+        url += kWebHost;
+        url += L"/index.html";
+    }
+    else
+    {
+        url = L"file:///" + m_webDir + L"/index.html";
+        std::replace(
+            url.begin(),
+            url.end(),
+            L'\\',
+            L'/'
+        );
+    }
+
+    url += L"?lang=";
+    url += LangCode();
+    url += L"&pref=";
+    url += PrefCode();
+    return url;
 }
 
 void WebViewApp::InitWebView()
@@ -456,6 +565,17 @@ void WebViewApp::InitWebView()
 
                                 m_controller = controller;
 
+                                ComPtr<ICoreWebView2Controller2> controller2;
+                                if (SUCCEEDED(m_controller.As(&controller2)))
+                                {
+                                    const COREWEBVIEW2_COLOR color{
+                                        255, 0xF7, 0xF7, 0xF7
+                                    };
+                                    controller2->put_DefaultBackgroundColor(
+                                        color
+                                    );
+                                }
+
                                 m_controller->get_CoreWebView2(
                                     &m_webview
                                 );
@@ -520,10 +640,8 @@ void WebViewApp::InitWebView()
 
                                             const bool isUi =
                                                 uri &&
-                                                wcsstr(
-                                                    uri,
-                                                    L"mediatags.local"
-                                                );
+                                                (wcsstr(uri, kWebHost) ||
+                                                 wcsstr(uri, L"index.html"));
 
                                             if (uri)
                                                 CoTaskMemFree(uri);
@@ -533,7 +651,8 @@ void WebViewApp::InitWebView()
 
                                             if (ok)
                                             {
-                                                SendInitialData();
+                                                m_pageReady.store(true);
+                                                TrySendInitialData();
                                                 return S_OK;
                                             }
 
@@ -577,42 +696,28 @@ void WebViewApp::SendInitialData()
     if (!m_webview)
         return;
 
-    std::vector<std::vector<std::wstring>>
-        allTags;
-
-    for (const auto& file : m_files)
-    {
-        allTags.push_back(
-            Tags::Read(file)
-        );
-    }
-
-    auto common =
-        Intersection(allTags);
-
-    auto other =
-        OtherTags(allTags, common);
-
-    std::wstringstream json;
-
-    json << L"{\"files\":"
-         << m_files.size()
-         << L",\"tags\":";
-
-    AppendJsonArray(json, common);
-
-    json << L",\"other\":";
-
-    AppendJsonArray(json, other);
-
-    json << L",\"lang\":\""
-         << LangCode()
-         << L"\",\"pref\":\""
-         << PrefCode()
-         << L"\"}";
+    const std::wstring json =
+        BuildTagsJson(m_files);
 
     m_webview->PostWebMessageAsJson(
-        json.str().c_str()
+        json.c_str()
+    );
+}
+
+void WebViewApp::TrySendInitialData()
+{
+    if (!m_webview ||
+        !m_pageReady.load() ||
+        !m_tagsReady.load())
+    {
+        return;
+    }
+
+    if (m_initialSent.exchange(true))
+        return;
+
+    m_webview->PostWebMessageAsJson(
+        m_initialJson.c_str()
     );
 }
 
@@ -725,6 +830,14 @@ WebViewApp::WndProc(
     WPARAM wParam,
     LPARAM lParam)
 {
+    if (message == WM_APP_TAGS_READY)
+    {
+        if (s_instance)
+            s_instance->TrySendInitialData();
+
+        return 0;
+    }
+
     if (message == WM_SIZE)
     {
         if (s_instance &&

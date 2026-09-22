@@ -76,7 +76,7 @@ function filesLabel(count) {
 }
 
 
-function applyI18n(lang) {
+function applyI18n(lang, paintTags) {
 
     currentLang =
         lang === "es" ? "es" : "en";
@@ -99,11 +99,12 @@ function applyI18n(lang) {
         }
     );
 
-    if (fileCount)
+    if (fileCount && (paintTags !== false || fileCountValue))
         fileCount.textContent =
             filesLabel(fileCountValue);
 
-    renderTags();
+    if (paintTags !== false)
+        renderTags();
 }
 
 
@@ -410,6 +411,22 @@ if (langSelect) {
         }
     );
 }
+
+
+(function applyLangFromQuery() {
+
+    const params =
+        new URLSearchParams(location.search);
+
+    const pref = params.get("pref");
+    const lang = params.get("lang");
+
+    if (pref && langSelect)
+        langSelect.value = pref;
+
+    if (lang)
+        applyI18n(lang, false);
+})();
 
 
 if (window.chrome && window.chrome.webview) {
