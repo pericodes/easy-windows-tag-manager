@@ -14,7 +14,9 @@ const strings = {
         cancel: "Cancel",
         emptyCommon: "No common tags.",
         remove: "Remove",
-        addToAll: "Add to all"
+        addToAll: "Add to all",
+        loading: "Loading tags…",
+        updating: "Updating tags…"
     },
     es: {
         manageTags: "Gestionar tags",
@@ -26,7 +28,9 @@ const strings = {
         cancel: "Cancelar",
         emptyCommon: "No hay tags comunes.",
         remove: "Eliminar",
-        addToAll: "Añadir a todos"
+        addToAll: "Añadir a todos",
+        loading: "Cargando tags…",
+        updating: "Actualizando tags…"
     }
 };
 
@@ -50,6 +54,17 @@ const newTag =
 
 const langSelect =
     document.getElementById("lang");
+
+const busyOverlay =
+    document.getElementById("busy");
+
+const busyText =
+    document.getElementById("busyText");
+
+const statusLine =
+    document.getElementById("status");
+
+let busy = false;
 
 
 function t(key) {
@@ -108,9 +123,106 @@ function applyI18n(lang, paintTags) {
 }
 
 
+function progressLabel(done, total, mode) {
+
+    const action = t(
+        mode === "update" ? "updating" : "loading"
+    );
+
+    return `${action} ${done} / ${total}`;
+}
+
+
+function failedLabel(count) {
+
+    if (currentLang === "es") {
+
+        return count === 1
+            ? "No se pudo actualizar 1 archivo."
+            : `No se pudieron actualizar ${count} archivos.`;
+    }
+
+    return count === 1
+        ? "Could not update 1 file."
+        : `Could not update ${count} files.`;
+}
+
+
+function showBusy(done, total, mode) {
+
+    busy = true;
+    document.body.classList.add("is-busy");
+
+    if (busyOverlay)
+        busyOverlay.classList.remove("hidden");
+
+    if (!busyText)
+        return;
+
+    if (total > 0)
+        busyText.textContent =
+            progressLabel(done, total, mode);
+    else
+        busyText.textContent =
+            t(mode === "update" ? "updating" : "loading");
+}
+
+
+function hideBusy() {
+
+    busy = false;
+    document.body.classList.remove("is-busy");
+
+    if (busyOverlay)
+        busyOverlay.classList.add("hidden");
+}
+
+
+function showStatus(failed) {
+
+    if (!statusLine)
+        return;
+
+    if (!failed) {
+
+        statusLine.textContent = "";
+        statusLine.classList.add("hidden");
+        return;
+    }
+
+    statusLine.textContent = failedLabel(failed);
+    statusLine.classList.remove("hidden");
+}
+
+
+function beginWork() {
+
+    if (busy)
+        return false;
+
+    if (statusLine)
+        statusLine.classList.add("hidden");
+
+    showBusy(0, fileCountValue, "update");
+    return true;
+}
+
+
+function postToHost(message) {
+
+    if (!(window.chrome && window.chrome.webview))
+        return;
+
+    chrome.webview.postMessage(message);
+}
+
+
 function postAction(action, tags) {
 
-    chrome.webview.postMessage({
+    if (!beginWork())
+        return;
+
+    postToHost({
         action,
         tags
     });
@@ -119,7 +231,10 @@ function postAction(action, tags) {
 
 function postRename(from, to) {
 
-    chrome.webview.postMessage({
+    if (!beginWork())
+        return;
+
+    postToHost({
         action: "rename",
         from,
         to
@@ -365,11 +480,11 @@ document
                 return;
             }
 
-            postAction("add", [tag]);
-
             modal.classList.add(
                 "hidden"
             );
+
+            postAction("add", [tag]);
         }
     );
 
@@ -429,29 +544,45 @@ if (langSelect) {
 })();
 
 
+function applyHostMessage(data) {
+
+    if (!data)
+        return;
+
+    if (typeof data.progress === "number") {
+
+        showBusy(
+            data.progress,
+            data.total || 0,
+            "update"
+        );
+
+        return;
+    }
+
+    if (!Array.isArray(data.tags))
+        return;
+
+    hideBusy();
+
+    commonTags = data.tags;
+
+    otherTags = data.other || [];
+
+    fileCountValue = data.files || 0;
+
+    showStatus(data.failed || 0);
+
+    if (langSelect && data.pref)
+        langSelect.value = data.pref;
+
+    applyI18n(data.lang);
+}
+
+
 if (window.chrome && window.chrome.webview) {
     window.chrome.webview.addEventListener(
         "message",
-        event => {
-
-            const data = event.data;
-
-            if (!data)
-                return;
-
-            commonTags =
-                data.tags || [];
-
-            otherTags =
-                data.other || [];
-
-            fileCountValue =
-                data.files || 0;
-
-            if (langSelect && data.pref)
-                langSelect.value = data.pref;
-
-            applyI18n(data.lang);
-        }
+        event => applyHostMessage(event.data)
     );
 }

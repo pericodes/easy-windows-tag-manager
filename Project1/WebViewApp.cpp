@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <mutex>
 #include <sstream>
 #include <set>
 
@@ -17,6 +18,27 @@ namespace
 {
     constexpr wchar_t kWebHost[] = L"app.mediatags";
     constexpr UINT WM_APP_TAGS_READY = WM_APP + 1;
+    constexpr UINT WM_APP_TAGS_PROGRESS = WM_APP + 2;
+    constexpr UINT WM_APP_TAGS_DONE = WM_APP + 3;
+
+    unsigned WorkerCount(size_t files)
+    {
+        unsigned count = std::thread::hardware_concurrency();
+
+        if (count == 0)
+            count = 4;
+
+        if (count > 4)
+            count = 4;
+
+        if (count > files)
+            count = static_cast<unsigned>(files);
+
+        if (count == 0)
+            count = 1;
+
+        return count;
+    }
 }
 
 using Microsoft::WRL::Callback;
@@ -262,19 +284,10 @@ namespace
         };
     }
 
-    std::wstring BuildTagsJson(
-        const std::vector<std::wstring>& files)
+    std::wstring BuildTagsJsonFrom(
+        const std::vector<std::vector<std::wstring>>& allTags,
+        size_t failed)
     {
-        std::vector<std::vector<std::wstring>>
-            allTags;
-
-        for (const auto& file : files)
-        {
-            allTags.push_back(
-                Tags::Read(file)
-            );
-        }
-
         auto common =
             Intersection(allTags);
 
@@ -284,7 +297,7 @@ namespace
         std::wstringstream json;
 
         json << L"{\"files\":"
-             << files.size()
+             << allTags.size()
              << L",\"tags\":";
 
         AppendJsonArray(json, common);
@@ -293,7 +306,9 @@ namespace
 
         AppendJsonArray(json, other);
 
-        json << L",\"lang\":\""
+        json << L",\"failed\":"
+             << failed
+             << L",\"lang\":\""
              << LangCode()
              << L"\",\"pref\":\""
              << PrefCode()
@@ -310,6 +325,9 @@ WebViewApp::WebViewApp()
 
 WebViewApp::~WebViewApp()
 {
+    if (m_jobThread.joinable())
+        m_jobThread.join();
+
     if (m_tagThread.joinable())
         m_tagThread.join();
 
@@ -392,13 +410,20 @@ void WebViewApp::StartLoadingTags()
                     COINIT_APARTMENTTHREADED
                 );
 
-            std::wstring json =
-                BuildTagsJson(m_files);
+            std::vector<std::vector<std::wstring>> all;
+            all.reserve(m_files.size());
+
+            for (const auto& file : m_files)
+                all.push_back(Tags::Read(file));
 
             if (SUCCEEDED(com))
                 CoUninitialize();
 
-            m_initialJson = std::move(json);
+            {
+                std::lock_guard<std::mutex> lock(m_cacheMutex);
+                m_cachedTags = std::move(all);
+            }
+
             m_tagsReady.store(true);
 
             if (m_window)
@@ -709,17 +734,23 @@ void WebViewApp::InitWebView()
     }
 }
 
-void WebViewApp::SendInitialData()
+void WebViewApp::SendCachedState(size_t failed)
 {
     if (!m_webview)
         return;
 
-    const std::wstring json =
-        BuildTagsJson(m_files);
+    std::wstring json;
 
-    m_webview->PostWebMessageAsJson(
-        json.c_str()
-    );
+    {
+        std::lock_guard<std::mutex> lock(m_cacheMutex);
+
+        if (m_cachedTags.size() != m_files.size())
+            return;
+
+        json = BuildTagsJsonFrom(m_cachedTags, failed);
+    }
+
+    m_webview->PostWebMessageAsJson(json.c_str());
 }
 
 void WebViewApp::TrySendInitialData()
@@ -734,9 +765,129 @@ void WebViewApp::TrySendInitialData()
     if (m_initialSent.exchange(true))
         return;
 
-    m_webview->PostWebMessageAsJson(
-        m_initialJson.c_str()
-    );
+    SendCachedState(0);
+}
+
+void WebViewApp::StartTagJob(
+    JobKind kind,
+    std::vector<std::wstring> tags,
+    std::wstring from,
+    std::wstring to)
+{
+    if (m_files.empty())
+    {
+        SendCachedState(0);
+        return;
+    }
+
+    if (m_jobRunning.exchange(true))
+        return;
+
+    if (m_jobThread.joinable())
+        m_jobThread.join();
+
+    const HWND hwnd = m_window;
+
+    m_jobThread = std::thread(
+        [this, hwnd, kind, tags = std::move(tags),
+         from = std::move(from), to = std::move(to)]()
+        {
+            if (m_tagThread.joinable())
+                m_tagThread.join();
+
+            const size_t total = m_files.size();
+            std::vector<std::vector<std::wstring>> all(total);
+            std::atomic<size_t> cursor{ 0 };
+            std::atomic<size_t> finished{ 0 };
+            std::atomic<size_t> failed{ 0 };
+
+            const unsigned workers = WorkerCount(total);
+            std::vector<std::thread> pool;
+            pool.reserve(workers);
+
+            for (unsigned worker = 0; worker < workers; ++worker)
+            {
+                pool.emplace_back([&]()
+                {
+                    const HRESULT com =
+                        CoInitializeEx(
+                            nullptr,
+                            COINIT_APARTMENTTHREADED);
+
+                    while (true)
+                    {
+                        const size_t index = cursor.fetch_add(1);
+
+                        if (index >= total)
+                            break;
+
+                        Tags::EditRequest request;
+                        request.kind =
+                            kind == JobKind::Add
+                                ? Tags::EditKind::Add
+                                : kind == JobKind::Remove
+                                    ? Tags::EditKind::Remove
+                                    : Tags::EditKind::Rename;
+                        request.tags = tags;
+                        request.from = from;
+                        request.to = to;
+
+                        std::vector<std::wstring> edited;
+                        bool ok = false;
+
+                        try
+                        {
+                            ok = Tags::Edit(
+                                m_files[index],
+                                request,
+                                edited);
+                        }
+                        catch (...)
+                        {
+                            ok = false;
+                        }
+
+                        if (!ok)
+                            failed.fetch_add(1);
+
+                        all[index] = std::move(edited);
+
+                        const size_t done =
+                            finished.fetch_add(1) + 1;
+
+                        if (hwnd)
+                        {
+                            PostMessageW(
+                                hwnd,
+                                WM_APP_TAGS_PROGRESS,
+                                static_cast<WPARAM>(done),
+                                static_cast<LPARAM>(total));
+                        }
+                    }
+
+                    if (SUCCEEDED(com))
+                        CoUninitialize();
+                });
+            }
+
+            for (auto& worker : pool)
+                worker.join();
+
+            {
+                std::lock_guard<std::mutex> lock(m_cacheMutex);
+                m_cachedTags = std::move(all);
+                m_pendingFailed = failed.load();
+            }
+
+            if (hwnd)
+            {
+                PostMessageW(
+                    hwnd,
+                    WM_APP_TAGS_DONE,
+                    0,
+                    0);
+            }
+        });
 }
 
 void WebViewApp::OnMessage(
@@ -755,7 +906,10 @@ void WebViewApp::OnMessage(
             SetWindowTextW(m_window, Loc(Str::ManageTags));
 
         UpdateLocalizedShellVerbs();
-        SendInitialData();
+
+        if (!m_jobRunning.load())
+            SendCachedState(0);
+
         return;
     }
 
@@ -769,19 +923,17 @@ void WebViewApp::OnMessage(
         auto to =
             ParseJsonStringField(json, L"to");
 
-        if (!from.empty() && !to.empty())
+        if (from.empty() || to.empty())
         {
-            for (const auto& file : m_files)
-            {
-                Tags::Rename(
-                    file,
-                    from,
-                    to
-                );
-            }
+            SendCachedState(0);
+            return;
         }
 
-        SendInitialData();
+        StartTagJob(
+            JobKind::Rename,
+            {},
+            std::move(from),
+            std::move(to));
         return;
     }
 
@@ -789,18 +941,17 @@ void WebViewApp::OnMessage(
             L"\"action\":\"delete\"")
         != std::wstring::npos)
     {
-        auto tags =
-            ParseTagsFromJson(json);
+        auto tags = ParseTagsFromJson(json);
 
-        for (const auto& file : m_files)
+        if (tags.empty())
         {
-            Tags::Remove(
-                file,
-                tags
-            );
+            SendCachedState(0);
+            return;
         }
 
-        SendInitialData();
+        StartTagJob(
+            JobKind::Remove,
+            std::move(tags));
         return;
     }
 
@@ -811,18 +962,15 @@ void WebViewApp::OnMessage(
         auto tags =
             ParseTagsFromJson(json);
 
-        if (!tags.empty())
+        if (tags.empty())
         {
-            for (const auto& file : m_files)
-            {
-                Tags::Add(
-                    file,
-                    tags
-                );
-            }
+            SendCachedState(0);
+            return;
         }
 
-        SendInitialData();
+        StartTagJob(
+            JobKind::Add,
+            std::move(tags));
     }
 }
 
@@ -852,6 +1000,40 @@ WebViewApp::WndProc(
     {
         if (s_instance)
             s_instance->TrySendInitialData();
+
+        return 0;
+    }
+
+    if (message == WM_APP_TAGS_PROGRESS)
+    {
+        if (s_instance && s_instance->m_webview)
+        {
+            wchar_t json[96]{};
+
+            swprintf_s(
+                json,
+                L"{\"progress\":%u,\"total\":%u}",
+                static_cast<unsigned>(wParam),
+                static_cast<unsigned>(lParam));
+
+            s_instance->m_webview->PostWebMessageAsJson(json);
+        }
+
+        return 0;
+    }
+
+    if (message == WM_APP_TAGS_DONE)
+    {
+        if (s_instance)
+        {
+            const size_t failed = s_instance->m_pendingFailed;
+
+            if (s_instance->m_jobThread.joinable())
+                s_instance->m_jobThread.join();
+
+            s_instance->m_jobRunning.store(false);
+            s_instance->SendCachedState(failed);
+        }
 
         return 0;
     }

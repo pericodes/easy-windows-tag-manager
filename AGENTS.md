@@ -128,7 +128,8 @@ Punto de entrada: `Project1.cpp` (`wWinMain`). Argumentos:
 
 - `WebViewApp.cpp`: ventana + WebView2.
 - Tras `Navigate`, **`NavigationCompleted` debe enviar los datos a JS**. Si no, la lista de tags comunes queda vacía aunque los keywords existan en disco. Los tags se leen en un hilo aparte mientras arranca WebView2; no bloquear el callback con `Tags::Read`.
-- Tras `action: add`, `delete`, `rename` o `setLang`, **refrescar** con `SendInitialData()`, **no** cerrar la ventana (`WM_CLOSE` era el comportamiento viejo).
+- Tras `action: add`, `delete` o `rename`, el trabajo va en hilos de fondo (hasta 4 archivos a la vez) y la UI muestra un overlay con el avance (`{"progress":N,"total":M}`). Al terminar se reenvía el JSON de tags; no se cierra la ventana. `setLang` reenvía el JSON desde la caché, sin volver a leer los archivos. Si hay un trabajo en curso, el idioma se aplica en el JSON final.
+- Vídeo ISO (`.mp4` `.m4v` `.mov` `.3gp` `.3g2`): `IsoKeywords.cpp` escribe `WM/Category` en `moov/udta/Xtra` sin copiar el `mdat` (cabe en el sitio, crece sobre un átomo `free`, el `moov` está al final, o el `moov` viejo pasa a `free` y el nuevo se añade al final). Si la relectura con `IPropertyStore` no coincide, se deshace el parche y se usa el handler de Windows, que reescribe el archivo. Fotos: un solo `IPropertyStore` en lectura/escritura, sin reescribir si el tag no cambia.
 - User data de WebView2: `%LOCALAPPDATA%\MediaTags\WebView2`.
 - La UI se carga con `SetVirtualHostNameToFolderMapping` (`https://app.mediatags/`), no con `file://` ni con un host `.local` (eso dispara mDNS y deja la ventana en blanco unos segundos). Si WebView2 no arranca, hay `MessageBox` con el HRESULT.
 - JSON hacia JS: `PostWebMessageAsJson` `{"files":N,"tags":["..."],"other":["..."],"lang":"es","pref":"auto"}`. `tags` son los comunes (intersección); `other` los que tiene algún archivo pero no todos. `lang` es el idioma efectivo (`en`/`es`); `pref` es la elección (`auto`/`en`/`es`).
@@ -208,6 +209,7 @@ Las cadenas nativas (menú, MessageBox, instalador) están en `Common/Loc.h`. El
 9. **Defender `Trojan:Win32/Bearfoos.Alml`** — falso positivo heurístico. La causa era `powershell -ExecutionPolicy Bypass` + `cmd.exe` + importar certificado + registrar Appx desde `Install.cpp`. Eso ya no está en el `.exe`. Si sigue saliendo: restaurar/permitir el archivo, usar `MediaTagsSetup.exe` (no el Debug suelto), y si hace falta exclusión o envío a WDSI. Un certificado Authenticode de verdad reduce falsos positivos. El PowerShell de los post-build (`build-msix.ps1`) **no** se incrusta en el binario.
 10. **WebP / GIF / BMP no guardan tags nativos** — `IsPropertyWritable(PKEY_Keywords)` es `S_FALSE`. En WebP `SetValue` devuelve `STG_E_ACCESSDENIED` (0x80030005). El Photo Property Handler de Windows solo escribe keywords con política JPEG/TIFF (PNG/AVIF sí). **No** inventar XMP propio: si el Explorador no puede mostrar Tags, no se registra el tipo. Ver `kRetiredMediaTagExtensions`.
 11. **`VCRUNTIME140_1.dll` no se encontró** — el instalador o el exe se compiló con CRT dinámico (`/MD`). Compilar Release con `/MT` (ya está en los tres `.vcxproj`).
+12. **«No responde» al etiquetar muchos archivos grandes** — `Commit` corría en el hilo de la UI y, en vídeo, el handler de Windows copiaba el archivo entero. El trabajo va en segundo plano con overlay. No volver a escribir keywords ISO copiando el `mdat` si el parche de `IsoKeywords.cpp` encaja.
 
 MakeAppx exige: `PublisherDisplayName` en una línea, `BackgroundColor` en VisualElements, GUID sin `{}`.
 

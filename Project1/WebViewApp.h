@@ -5,6 +5,7 @@
 #include <WebView2.h>
 
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -41,12 +42,17 @@ private:
     std::vector<std::wstring> m_files;
 
     std::wstring m_webDir;
-    std::wstring m_initialJson;
 
     std::thread m_tagThread;
+    std::thread m_jobThread;
+    std::mutex m_cacheMutex;
+    std::vector<std::vector<std::wstring>> m_cachedTags;
+    size_t m_pendingFailed = 0;
+
     std::atomic<bool> m_tagsReady{ false };
     std::atomic<bool> m_pageReady{ false };
     std::atomic<bool> m_initialSent{ false };
+    std::atomic<bool> m_jobRunning{ false };
 
     void StartLoadingTags();
 
@@ -63,7 +69,21 @@ private:
         const std::wstring& json
     );
 
-    void SendInitialData();
+    enum class JobKind
+    {
+        Add,
+        Remove,
+        Rename
+    };
+
+    void StartTagJob(
+        JobKind kind,
+        std::vector<std::wstring> tags,
+        std::wstring from = {},
+        std::wstring to = {}
+    );
+
+    void SendCachedState(size_t failed);
 
     void TrySendInitialData();
 

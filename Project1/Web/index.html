@@ -41,6 +41,10 @@
          class="subtitle">
     </div>
 
+    <div id="status"
+         class="status hidden">
+    </div>
+
     <div class="section-header">
 
         <h2 data-i18n="commonTags">Common tags</h2>
@@ -98,6 +102,24 @@
             </button>
 
         </div>
+
+    </div>
+
+</div>
+
+
+<div id="busy"
+     class="busy"
+     role="status"
+     aria-live="polite">
+
+    <div class="busy-card">
+
+        <div class="spinner"
+             aria-hidden="true"></div>
+
+        <p id="busyText"
+           data-i18n="loading">Loading tags…</p>
 
     </div>
 

@@ -241,3 +241,75 @@ button:hover {
 
     margin-top: 20px;
 }
+
+.status {
+    color: #c42b1c;
+    margin: -12px 0 16px;
+}
+
+body.is-busy .window {
+    pointer-events: none;
+}
+
+.busy {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(247, 247, 247, .78);
+    cursor: wait;
+}
+
+.busy.hidden {
+    display: none;
+}
+
+.busy-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    padding: 18px 22px;
+
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+
+    box-shadow:
+        0 10px 40px
+        rgba(0, 0, 0, .18);
+}
+
+.busy-card p {
+    margin: 0;
+    font-size: 15px;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+
+    border: 3px solid #d6d6d6;
+    border-top-color: #0067c0;
+    border-radius: 50%;
+
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
+        border-top-color: #0067c0;
+    }
+}
