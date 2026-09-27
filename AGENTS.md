@@ -68,13 +68,13 @@ El workflow `.github/workflows/build.yml` compila **Release x64** en `windows-la
 
 Un tag solo no publica el `.exe`: hay que esperar a que Actions termine en verde. Si el job falla, Releases queda vacío y en Tags solo se ven los zips de código fuente.
 
-Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.9`).
+Si el tag ya existe y hay que republicar: Actions → *Build and release* → *Run workflow* (`create_release` + tag `v1.0.10`).
 
-La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.9` → `1.0.9.0`). Si cambias el manifiesto, súbela antes de etiquetar.
+La versión del tag debe coincidir con `Package/AppxManifest.xml` (`v1.0.10` → `1.0.10.0`). Si cambias el manifiesto, súbela antes de etiquetar.
 
 ```bat
-git tag v1.0.9
-git push origin v1.0.9
+git tag v1.0.10
+git push origin v1.0.10
 ```
 
 El usuario final descarga ese `.exe` y no necesita Visual Studio. El MSIX sigue yendo autofirmado (`CN=MediaTags`); el instalador importa el `.cer` embebido. Defender puede seguir marcando falso positivo.
@@ -174,7 +174,7 @@ No ejecutar `MediaTags.exe` de `out\x64\Debug` como instalador si se puede evita
 
 - `uap10:AllowExternalContent=true` (sparse: el msix solo lleva manifiesto + logos 1×1).
 - `ProcessorArchitecture="x64"` (Neutral rompe la carga de la DLL en Explorer).
-- Versión actual: **1.0.9.0**. Si cambias el manifiesto, súbela.
+- Versión actual: **1.0.10.0**. Si cambias el manifiesto, súbela.
 - Menú Win11: **`desktop5:ItemType` / `desktop5:Verb`** dentro de `desktop4:FileExplorerContextMenus`. `desktop4:ItemType` **no aparece** en el menú moderno.
 - Publisher del cert autofirmado: `CN=MediaTags` (debe coincidir con `Identity/@Publisher`).
 - `build-msix.ps1` crea/reutiliza el cert en `Cert:\CurrentUser\My`, firma con SignTool, deja `.msix` y `.cer` en OutDir.
