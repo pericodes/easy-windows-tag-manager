@@ -1,7 +1,11 @@
 let commonTags = [];
 let otherTags = [];
+let savedTags = [];
+let recentTags = [];
 let fileCountValue = 0;
 let currentLang = "en";
+let modalMode = "add";
+let libraryOpen = true;
 
 const strings = {
     en: {
@@ -15,6 +19,14 @@ const strings = {
         emptyCommon: "No common tags.",
         remove: "Remove",
         addToAll: "Add to all",
+        savedTags: "Saved",
+        recentTags: "Recently used",
+        save: "Save",
+        unsave: "Remove",
+        emptySaved: "No saved tags.",
+        saveTag: "Save tag",
+        showLibrary: "Show saved tags",
+        hideLibrary: "Hide saved tags",
         loading: "Loading tags…",
         updating: "Updating tags…"
     },
@@ -29,6 +41,14 @@ const strings = {
         emptyCommon: "No hay tags comunes.",
         remove: "Eliminar",
         addToAll: "Añadir a todos",
+        savedTags: "Guardados",
+        recentTags: "Usados recientemente",
+        save: "Guardar",
+        unsave: "Quitar",
+        emptySaved: "No hay tags guardados.",
+        saveTag: "Guardar tag",
+        showLibrary: "Mostrar guardados",
+        hideLibrary: "Ocultar guardados",
         loading: "Cargando tags…",
         updating: "Actualizando tags…"
     }
@@ -42,6 +62,24 @@ const otherSection =
 
 const otherTagsContainer =
     document.getElementById("otherTags");
+
+const savedTagsContainer =
+    document.getElementById("savedTags");
+
+const recentSection =
+    document.getElementById("recentSection");
+
+const recentTagsContainer =
+    document.getElementById("recentTags");
+
+const modalTitle =
+    document.getElementById("modalTitle");
+
+const libraryColumn =
+    document.getElementById("library");
+
+const libraryToggle =
+    document.getElementById("libraryToggle");
 
 const fileCount =
     document.getElementById("fileCount");
@@ -73,6 +111,40 @@ function t(key) {
         strings[currentLang] || strings.en;
 
     return table[key] || strings.en[key] || key;
+}
+
+
+function applyLibrary(show) {
+
+    if (show !== undefined)
+        libraryOpen = show === true || show === "1";
+
+    document.documentElement.classList.toggle(
+        "library-off",
+        !libraryOpen
+    );
+
+    if (libraryColumn)
+        libraryColumn.classList.toggle(
+            "hidden",
+            !libraryOpen
+        );
+
+    if (!libraryToggle)
+        return;
+
+    libraryToggle.classList.toggle(
+        "is-on",
+        libraryOpen
+    );
+
+    libraryToggle.setAttribute(
+        "aria-pressed",
+        libraryOpen ? "true" : "false"
+    );
+
+    libraryToggle.title =
+        t(libraryOpen ? "hideLibrary" : "showLibrary");
 }
 
 
@@ -120,6 +192,8 @@ function applyI18n(lang, paintTags) {
 
     if (paintTags !== false)
         renderTags();
+
+    applyLibrary();
 }
 
 
@@ -229,6 +303,18 @@ function postAction(action, tags) {
 }
 
 
+function postLibrary(action, tag) {
+
+    if (busy)
+        return;
+
+    postToHost({
+        action,
+        tag
+    });
+}
+
+
 function postRename(from, to) {
 
     if (!beginWork())
@@ -320,7 +406,7 @@ function createActionButton(label, className, onClick) {
 }
 
 
-function createTagRow(tag, actions) {
+function createTagRow(tag, actions, editable) {
 
     const row =
         document.createElement("div");
@@ -334,10 +420,13 @@ function createTagRow(tag, actions) {
     name.textContent = tag;
     name.title = tag;
 
-    name.addEventListener(
-        "click",
-        () => beginEdit(name, tag)
-    );
+    if (editable === false)
+        name.classList.add("static");
+    else
+        name.addEventListener(
+            "click",
+            () => beginEdit(name, tag)
+        );
 
     const group =
         document.createElement("div");
@@ -430,10 +519,128 @@ function renderOtherTags() {
 }
 
 
+function renderSavedTags() {
+
+    if (!savedTagsContainer)
+        return;
+
+    savedTagsContainer.innerHTML = "";
+
+    if (savedTags.length === 0) {
+
+        const empty =
+            document.createElement("div");
+
+        empty.textContent = t("emptySaved");
+
+        empty.style.color =
+            "#777";
+
+        savedTagsContainer.appendChild(
+            empty
+        );
+
+        return;
+    }
+
+    for (const tag of savedTags) {
+
+        savedTagsContainer.appendChild(
+            createTagRow(tag, [
+                createActionButton(
+                    t("add"),
+                    "primary small",
+                    () => postAction("add", [tag])
+                ),
+                createActionButton(
+                    t("unsave"),
+                    "ghost small",
+                    () => postLibrary("unsave", tag)
+                )
+            ], false)
+        );
+    }
+}
+
+
+function renderRecentTags() {
+
+    if (!recentSection || !recentTagsContainer)
+        return;
+
+    recentTagsContainer.innerHTML = "";
+
+    if (recentTags.length === 0) {
+
+        recentSection.classList.add(
+            "hidden"
+        );
+
+        return;
+    }
+
+    recentSection.classList.remove(
+        "hidden"
+    );
+
+    for (const tag of recentTags) {
+
+        const actions = [
+            createActionButton(
+                t("add"),
+                "primary small",
+                () => postAction("add", [tag])
+            )
+        ];
+
+        if (!savedTags.includes(tag)) {
+
+            actions.push(
+                createActionButton(
+                    t("save"),
+                    "ghost small",
+                    () => postLibrary("save", tag)
+                )
+            );
+        }
+
+        recentTagsContainer.appendChild(
+            createTagRow(tag, actions, false)
+        );
+    }
+}
+
+
 function renderTags() {
 
+    renderSavedTags();
+    renderRecentTags();
     renderCommonTags();
     renderOtherTags();
+}
+
+
+function openModal(mode) {
+
+    modalMode =
+        mode === "save" ? "save" : "add";
+
+    if (modalTitle) {
+
+        modalTitle.dataset.i18n =
+            modalMode === "save" ? "saveTag" : "addTag";
+
+        modalTitle.textContent =
+            t(modalTitle.dataset.i18n);
+    }
+
+    newTag.value = "";
+
+    modal.classList.remove(
+        "hidden"
+    );
+
+    newTag.focus();
 }
 
 
@@ -441,17 +648,20 @@ document
     .getElementById("add")
     .addEventListener(
         "click",
-        () => {
-
-            newTag.value = "";
-
-            modal.classList.remove(
-                "hidden"
-            );
-
-            newTag.focus();
-        }
+        () => openModal("add")
     );
+
+
+const addSaved =
+    document.getElementById("addSaved");
+
+if (addSaved) {
+
+    addSaved.addEventListener(
+        "click",
+        () => openModal("save")
+    );
+}
 
 
 document
@@ -484,7 +694,10 @@ document
                 "hidden"
             );
 
-            postAction("add", [tag]);
+            if (modalMode === "save")
+                postLibrary("save", tag);
+            else
+                postAction("add", [tag]);
         }
     );
 
@@ -508,6 +721,30 @@ newTag.addEventListener(
         }
     }
 );
+
+
+if (libraryToggle) {
+
+    libraryToggle.addEventListener(
+        "click",
+        () => {
+
+            const show =
+                libraryOpen ? "0" : "1";
+
+            if (!(window.chrome && window.chrome.webview)) {
+
+                applyLibrary(show);
+                return;
+            }
+
+            chrome.webview.postMessage({
+                action: "setLibrary",
+                show
+            });
+        }
+    );
+}
 
 
 if (langSelect) {
@@ -535,9 +772,13 @@ if (langSelect) {
 
     const pref = params.get("pref");
     const lang = params.get("lang");
+    const library = params.get("library");
 
     if (pref && langSelect)
         langSelect.value = pref;
+
+    if (library === "0" || library === "1")
+        applyLibrary(library);
 
     if (lang)
         applyI18n(lang, false);
@@ -568,6 +809,13 @@ function applyHostMessage(data) {
     commonTags = data.tags;
 
     otherTags = data.other || [];
+
+    savedTags = data.saved || [];
+
+    recentTags = data.recent || [];
+
+    if (typeof data.library === "boolean")
+        libraryOpen = data.library;
 
     fileCountValue = data.files || 0;
 

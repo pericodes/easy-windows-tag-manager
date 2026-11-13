@@ -3,6 +3,7 @@
 #include "Tags.h"
 #include "Resource.h"
 #include "../Common/Loc.h"
+#include "../Common/TagLists.h"
 
 #include <windows.h>
 #include <shobjidl.h>
@@ -17,6 +18,9 @@
 namespace
 {
     constexpr wchar_t kWebHost[] = L"app.mediatags";
+    constexpr int kWindowWidth = 640;
+    constexpr int kWindowHeight = 720;
+    constexpr int kLibraryExtra = 420;
     constexpr UINT WM_APP_TAGS_READY = WM_APP + 1;
     constexpr UINT WM_APP_TAGS_PROGRESS = WM_APP + 2;
     constexpr UINT WM_APP_TAGS_DONE = WM_APP + 3;
@@ -38,6 +42,27 @@ namespace
             count = 1;
 
         return count;
+    }
+
+    void ApplyLibraryWindowWidth(HWND window)
+    {
+        if (!window)
+            return;
+
+        RECT rect{};
+        GetWindowRect(window, &rect);
+
+        const int width = kWindowWidth +
+            (tag_lists::LibraryVisible() ? kLibraryExtra : 0);
+
+        SetWindowPos(
+            window,
+            nullptr,
+            0,
+            0,
+            width,
+            rect.bottom - rect.top,
+            SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
 }
 
@@ -312,7 +337,17 @@ namespace
              << LangCode()
              << L"\",\"pref\":\""
              << PrefCode()
-             << L"\"}";
+             << L"\",\"recent\":";
+
+        AppendJsonArray(json, tag_lists::ReadRecent());
+
+        json << L",\"saved\":";
+
+        AppendJsonArray(json, tag_lists::ReadSaved());
+
+        json << L",\"library\":"
+             << (tag_lists::LibraryVisible() ? L"true" : L"false")
+             << L"}";
 
         return json.str();
     }
@@ -377,8 +412,8 @@ bool WebViewApp::Create(
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        640,
-        720,
+        kWindowWidth + (tag_lists::LibraryVisible() ? kLibraryExtra : 0),
+        kWindowHeight,
         nullptr,
         nullptr,
         wc.hInstance,
@@ -517,6 +552,8 @@ std::wstring WebViewApp::UiUrl(
     url += LangCode();
     url += L"&pref=";
     url += PrefCode();
+    url += L"&library=";
+    url += tag_lists::LibraryVisible() ? L"1" : L"0";
     return url;
 }
 
@@ -783,6 +820,9 @@ void WebViewApp::StartTagJob(
     if (m_jobRunning.exchange(true))
         return;
 
+    if (kind == JobKind::Add)
+        tag_lists::RememberRecent(tags);
+
     if (m_jobThread.joinable())
         m_jobThread.join();
 
@@ -906,6 +946,54 @@ void WebViewApp::OnMessage(
             SetWindowTextW(m_window, Loc(Str::ManageTags));
 
         UpdateLocalizedShellVerbs();
+
+        if (!m_jobRunning.load())
+            SendCachedState(0);
+
+        return;
+    }
+
+    if (json.find(
+            L"\"action\":\"setLibrary\"")
+        != std::wstring::npos)
+    {
+        auto show =
+            ParseJsonStringField(json, L"show");
+
+        tag_lists::SetLibraryVisible(show != L"0");
+        ApplyLibraryWindowWidth(m_window);
+
+        if (!m_jobRunning.load())
+            SendCachedState(0);
+
+        return;
+    }
+
+    if (json.find(
+            L"\"action\":\"save\"")
+        != std::wstring::npos)
+    {
+        auto tag =
+            ParseJsonStringField(json, L"tag");
+
+        if (!tag.empty())
+            tag_lists::SaveTag(tag);
+
+        if (!m_jobRunning.load())
+            SendCachedState(0);
+
+        return;
+    }
+
+    if (json.find(
+            L"\"action\":\"unsave\"")
+        != std::wstring::npos)
+    {
+        auto tag =
+            ParseJsonStringField(json, L"tag");
+
+        if (!tag.empty())
+            tag_lists::UnsaveTag(tag);
 
         if (!m_jobRunning.load())
             SendCachedState(0);

@@ -9,6 +9,11 @@
 
     <link rel="stylesheet"
           href="style.css">
+
+    <script>
+        if (new URLSearchParams(location.search).get("library") === "0")
+            document.documentElement.classList.add("library-off");
+    </script>
 </head>
 
 <body>
@@ -26,14 +31,26 @@
             <h1 data-i18n="manageTags">Manage tags</h1>
         </div>
 
-        <label class="lang-picker">
-            <select id="lang"
-                    aria-label="Language">
-                <option value="auto">Windows</option>
-                <option value="en">English</option>
-                <option value="es">Español</option>
-            </select>
-        </label>
+        <div class="title-tools">
+
+            <button id="libraryToggle"
+                    type="button"
+                    class="library-toggle is-on"
+                    aria-pressed="true"
+                    data-i18n="savedTags">
+                Saved
+            </button>
+
+            <label class="lang-picker">
+                <select id="lang"
+                        aria-label="Language">
+                    <option value="auto">Windows</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                </select>
+            </label>
+
+        </div>
 
     </div>
 
@@ -44,6 +61,10 @@
     <div id="status"
          class="status hidden">
     </div>
+
+    <div class="columns">
+
+    <div class="column-main">
 
     <div class="section-header">
 
@@ -72,6 +93,42 @@
 
     </div>
 
+    </div>
+
+    <aside id="library"
+           class="column-library">
+
+        <div class="section-header">
+
+            <h2 data-i18n="savedTags">Saved</h2>
+
+            <button id="addSaved"
+                    class="primary"
+                    data-i18n="add">
+                Add
+            </button>
+
+        </div>
+
+        <div id="savedTags"
+             class="tags">
+        </div>
+
+        <div id="recentSection"
+             class="hidden">
+
+            <h2 data-i18n="recentTags">Recently used</h2>
+
+            <div id="recentTags"
+                 class="tags">
+            </div>
+
+        </div>
+
+    </aside>
+
+    </div>
+
 </div>
 
 
@@ -80,7 +137,8 @@
 
     <div class="dialog">
 
-        <h2 data-i18n="addTag">Add tag</h2>
+        <h2 id="modalTitle"
+            data-i18n="addTag">Add tag</h2>
 
         <input id="newTag"
                type="text"
