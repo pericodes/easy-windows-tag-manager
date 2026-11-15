@@ -4,6 +4,7 @@
 #include "Resource.h"
 #include "../Common/Loc.h"
 #include "../Common/TagLists.h"
+#include <WebView2EnvironmentOptions.h>
 
 #include <windows.h>
 #include <shobjidl.h>
@@ -17,7 +18,10 @@
 
 namespace
 {
-    constexpr wchar_t kWebHost[] = L"app.mediatags";
+    // .example está reservado y no entra en la búsqueda DNS.
+    // Un nombre como app.mediatags espera al resolver varios segundos
+    // y la ventana se queda en gris hasta que esa espera termina.
+    constexpr wchar_t kWebHost[] = L"appassets.example";
     constexpr int kWindowWidth = 640;
     constexpr int kWindowHeight = 720;
     constexpr int kLibraryExtra = 420;
@@ -600,11 +604,22 @@ void WebViewApp::InitWebView()
         return;
     }
 
+    auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+    if (options)
+    {
+        options->put_AdditionalBrowserArguments(
+            L"--no-first-run "
+            L"--disable-sync "
+            L"--disable-background-networking "
+            L"--disable-component-update");
+        options->put_EnableTrackingPrevention(FALSE);
+    }
+
     const HRESULT created =
         CreateCoreWebView2EnvironmentWithOptions(
             nullptr,
             userData.empty() ? nullptr : userData.c_str(),
-            nullptr,
+            options.Get(),
 
             Callback<
                 ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(
@@ -676,7 +691,7 @@ void WebViewApp::InitWebView()
                                 );
 
                                 m_controller->put_Bounds(bounds);
-                                m_controller->put_IsVisible(TRUE);
+                                m_controller->put_IsVisible(FALSE);
 
                                 m_webview->add_WebMessageReceived(
                                     Callback<
@@ -732,6 +747,8 @@ void WebViewApp::InitWebView()
                                             if (ok)
                                             {
                                                 m_pageReady.store(true);
+                                                if (m_controller)
+                                                    m_controller->put_IsVisible(TRUE);
                                                 TrySendInitialData();
                                                 return S_OK;
                                             }
@@ -1123,6 +1140,61 @@ WebViewApp::WndProc(
             s_instance->SendCachedState(failed);
         }
 
+        return 0;
+    }
+
+    if (message == WM_PAINT)
+    {
+        BOOL webVisible = FALSE;
+        if (s_instance && s_instance->m_controller)
+            s_instance->m_controller->get_IsVisible(&webVisible);
+
+        PAINTSTRUCT ps{};
+        HDC dc = BeginPaint(hwnd, &ps);
+
+        if (!webVisible)
+        {
+            RECT client{};
+            GetClientRect(hwnd, &client);
+
+            HFONT font = CreateFontW(
+                -24,
+                0,
+                0,
+                0,
+                FW_SEMIBOLD,
+                FALSE,
+                FALSE,
+                FALSE,
+                DEFAULT_CHARSET,
+                OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                CLEARTYPE_QUALITY,
+                DEFAULT_PITCH | FF_DONTCARE,
+                L"Segoe UI");
+
+            HFONT previous = static_cast<HFONT>(
+                SelectObject(dc, font));
+
+            SetBkMode(dc, TRANSPARENT);
+            SetTextColor(dc, RGB(0x20, 0x20, 0x20));
+
+            RECT text = client;
+            text.left += 28;
+            text.top += 28;
+
+            DrawTextW(
+                dc,
+                Loc(Str::ManageTags),
+                -1,
+                &text,
+                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX);
+
+            SelectObject(dc, previous);
+            DeleteObject(font);
+        }
+
+        EndPaint(hwnd, &ps);
         return 0;
     }
 
